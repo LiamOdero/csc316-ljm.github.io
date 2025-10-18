@@ -18,11 +18,11 @@ constructor(parentElement, data, comparison) {
     this.displayData =data;
 	this.get_pos();
 	this.comparison = comparison
-	this.colours = ["#ff3300", "#ffa148", "#fff9fb", "#c8d5ff", "#9bbcff"]
+	this.colours = ["#ff3300","#fff9fb", "#9dbdff"]
 
 	// Scale defined via http://www.vendian.org/mncharity/dir3/blackbody/UnstableURLs/bbr_color.html 
 	this.colorScale = d3.scaleDiverging()
-        .domain([1000, 2500, 6500, 11000, 40000])
+        .domain([1000, 6500, 35000])
 		.range(this.colours)
 		.clamp(true);
 
@@ -154,13 +154,25 @@ constructor(parentElement, data, comparison) {
 	updateDomain(xDomain, yDomain) {
 		let vis = this;
 		
+		let currXDomain = vis.x.domain()
+		let currYDomain = vis.y.domain()
+
 		// scales are updated to the new domain
 		vis.x.domain(xDomain);
 		vis.y.domain(yDomain);
-		
-		let inRangeData = vis.data.filter((e) =>	{
+		let inRangeData;
+		if (currXDomain[0] <= xDomain[0] && xDomain[1] <= currXDomain[1] && currYDomain[0] <= yDomain[0] && yDomain[1] <= currYDomain[1])	{
+			inRangeData = vis.displayData.filter((e) =>	{
 			return xDomain[0] <= e.x_pos && e.x_pos <= xDomain[1] && yDomain[0] <= e.y_pos && e.y_pos <= yDomain[1]  
-		})
+			})
+		}	else	{
+			inRangeData = vis.data.filter((e) =>	{
+				return xDomain[0] <= e.x_pos && e.x_pos <= xDomain[1] && yDomain[0] <= e.y_pos && e.y_pos <= yDomain[1]  
+			})
+		}
+		
+
+
 		vis.r.domain(d3.extent(inRangeData, d => d.rad))
 		
 		vis.displayData = inRangeData
@@ -188,9 +200,6 @@ constructor(parentElement, data, comparison) {
 
 		circles.enter().append("circle")
 		.merge(circles)
-			.attr("fill", function(d) {
-				return vis.colorScale(d.temp)	
-			})
 			.on("mouseenter", (event, d) => {
 				showTooltip(vis.getTooltipContent(d), event);
 				d3.select(event.currentTarget)
@@ -216,6 +225,9 @@ constructor(parentElement, data, comparison) {
 			})
 			.attr("r", function(d) {
 				return vis.r(d.rad)
+			})
+			.attr("fill", function(d) {
+				return vis.colorScale(d.temp)	
 			});
 		circles.exit().remove()
 

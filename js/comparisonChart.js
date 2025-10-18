@@ -21,11 +21,11 @@ constructor(parentElement, textElement) {
 						y_pos: -50}];
 
     this.displayData = []
-	this.colours = ["#ff3300", "#ffa148", "#fff9fb", "#c8d5ff", "#9bbcff"]
+	this.colours = ["#ff3300","#fff9fb", "#9dbdff"]
 
 	// Scale defined via http://www.vendian.org/mncharity/dir3/blackbody/UnstableURLs/bbr_color.html 
 	this.colorScale = d3.scaleDiverging()
-        .domain([1000, 2500, 6500, 11000, 40000])
+        .domain([1000, 6500, 35000])
 		.range(this.colours)
 		.clamp(true);
 
