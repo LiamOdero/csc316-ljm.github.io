@@ -47,7 +47,7 @@ function prepareData(data){
 	});
 
 	data_cleansed.sort(function(a, b)	{
-		return b.dist - a.dist;
+		return a.rad - b.rad;
 	})
 
 	for (let i = 0; i < data_cleansed.length; i++)	{

@@ -9,6 +9,8 @@
  * @param  selectedIndex    -- a global 'variable' inside the class that keeps track of the index of the selected area
  */
 
+EPSILON = 1e-1
+
 class StarDisplayChart {
 
 // constructor method to initialize StarDisplayChart object
@@ -98,6 +100,11 @@ constructor(parentElement, data, comparison) {
 						   .attr("transform", "translate(0, -10)")
 						   .attr("opacity", 0.5);
 
+
+		vis.displayData = vis.data.filter((e) =>	{
+			return vis.r(e.rad) > EPSILON;
+		})
+		
         vis.updateVis();
 	}
 
@@ -153,28 +160,22 @@ constructor(parentElement, data, comparison) {
 	 */
 	updateDomain(xDomain, yDomain) {
 		let vis = this;
-		
-		let currXDomain = vis.x.domain()
-		let currYDomain = vis.y.domain()
 
 		// scales are updated to the new domain
 		vis.x.domain(xDomain);
 		vis.y.domain(yDomain);
 		let inRangeData;
-		if (currXDomain[0] <= xDomain[0] && xDomain[1] <= currXDomain[1] && currYDomain[0] <= yDomain[0] && yDomain[1] <= currYDomain[1])	{
-			inRangeData = vis.displayData.filter((e) =>	{
+
+		inRangeData = vis.data.filter((e) =>	{
 			return xDomain[0] <= e.x_pos && e.x_pos <= xDomain[1] && yDomain[0] <= e.y_pos && e.y_pos <= yDomain[1]  
-			})
-		}	else	{
-			inRangeData = vis.data.filter((e) =>	{
-				return xDomain[0] <= e.x_pos && e.x_pos <= xDomain[1] && yDomain[0] <= e.y_pos && e.y_pos <= yDomain[1]  
-			})
-		}
+		})
 		
+		vis.r.domain([inRangeData[0].rad, inRangeData[inRangeData.length - 1].rad])
 
+		inRangeData = inRangeData.filter((e) =>	{
+			return vis.r(e.rad) > EPSILON;
+		})
 
-		vis.r.domain(d3.extent(inRangeData, d => d.rad))
-		
 		vis.displayData = inRangeData
 		// axis update
 		vis.updateVis();
