@@ -21,6 +21,7 @@ constructor(parentElement, textElement) {
 						y_pos: -50}];
 
     this.displayData = []
+	this.displayText = []
 	this.colours = ["#ff3300","#fff9fb", "#9dbdff"]
 
 	// Scale defined via http://www.vendian.org/mncharity/dir3/blackbody/UnstableURLs/bbr_color.html 
@@ -37,35 +38,47 @@ constructor(parentElement, textElement) {
 	initVis(){
 		let vis = this;
 
-		vis.margin = {top: 40, right: 40, bottom: 60, left: 40};
+		vis.margin = {top: 50, right: 40, bottom: 20, left: 40};
 
 		vis.width = document.getElementById(vis.parentElement).getBoundingClientRect().width - vis.margin.left - vis.margin.right;
 		vis.height = document.getElementById(vis.parentElement).getBoundingClientRect().height - vis.margin.top - vis.margin.bottom;
 
-		// SVG drawing area
-		vis.svg = d3.select("#" + vis.parentElement).append("svg")
-			.attr("width", vis.width + vis.margin.left + vis.margin.right)
-			.attr("height", vis.height + vis.margin.top + vis.margin.bottom)
+		const totalWidth = vis.width + vis.margin.left + vis.margin.right;
+		const totalHeight = vis.height;
+		const toolHeight = totalHeight / 4;
+
+		vis.toolarea = d3.select("#" + vis.parentElement)
+			.append("svg")
+			.attr("width", totalWidth)
+			.attr("height", toolHeight + vis.margin.top + vis.margin.bottom)
 			.append("g")
-			.attr("transform", "translate(" + vis.margin.left + "," + vis.margin.top + ")");
+			.attr("transform", "translate(" + 0 + "," + vis.margin.top + ")");
+
+		const drawHeight = (totalHeight * 3) / 4;
+
+		vis.svg = d3.select("#" + vis.parentElement)
+			.append("svg")
+			.attr("width", totalWidth)
+			.attr("height", drawHeight + vis.margin.top + vis.margin.bottom)
+			.append("g")
+			.attr("transform", "translate(" + vis.margin.left + "," + 0 + ")");
+
 
 		vis.text = d3.select('#' + vis.textElement)
-		vis.text.text("Highlight a star:")
+		vis.text.text("Cick any star:")
 
 		// Scales and axes
 
-		// Since distance is just relative to earth, we can arbitrarily set some stars to -dist to increase the effective space we have
-		// to work with
 		vis.x = d3.scaleLinear()
 			.range([0, vis.width])
 			.domain(d3.extent(vis.data, d => d.x_pos));
 
 		vis.y = d3.scaleLinear()
-			.range([vis.height, 0])
+			.range([drawHeight, 0])
 			.domain(d3.extent(vis.data, d => d.y_pos));
 
 		vis.r = d3.scaleLinear()
-			.range([0, vis.width / 2])
+			.range([0, vis.width / 3])
 			.domain(d3.extent(vis.data, d => d.rad));
 
 		vis.svg.append("g")
@@ -75,9 +88,20 @@ constructor(parentElement, textElement) {
 		this.updateVis();
 	}
 	highlightStar(star)	{
+		
 		this.displayData = [star];
-		this.text.text("Click on star below to compare to Earth")
 		this.r.domain([0, star.rad])
+
+		const formatInteger = d3.format(",.0f");
+		const formatSI = d3.format(".2s");
+
+		let name = "ID: " + ((star.name) ? star.name : "Unknown star");
+		let distance = "Distance from Earth: " + (Number.isFinite(star.dist) ? `${Math.abs(star.dist).toFixed(2)} ly` : "Unknown");
+		let radius = "Radius: " + (Number.isFinite(star.rad) ? `${formatSI(star.rad)} km` : "Unknown");
+		let temperature = "Temperature: " + (Number.isFinite(star.temp) ? `${formatInteger(star.temp)} K` : "Unknown");
+		let luminosity = "Luminosity: " + (Number.isFinite(star.lum) ? `${formatSI(star.lum)} W` : "Unknown");
+
+		this.displayText = [name, distance, radius, temperature, luminosity];
 
 		this.updateVis();
 	}
@@ -87,24 +111,6 @@ constructor(parentElement, textElement) {
 		this.updateVis();
 	}
 
-	getTooltipContent(d) {
-		const formatInteger = d3.format(",.0f");
-		const formatSI = d3.format(".2s");
-
-		const name = d.name || "Unknown star";
-		const distance = Number.isFinite(d.dist) ? `${Math.abs(d.dist).toFixed(2)} ly` : "Unknown";
-		const radius = Number.isFinite(d.rad) ? `${formatSI(d.rad)} km` : "Unknown";
-		const temperature = Number.isFinite(d.temp) ? `${formatInteger(d.temp)} K` : "Unknown";
-		const luminosity = Number.isFinite(d.lum) ? `${formatSI(d.lum)} W` : "Unknown";
-
-		return `
-			<div><strong>${name}</strong></div>
-			<div>Distance: ${distance}</div>
-			<div>Radius: ${radius}</div>
-			<div>Temperature: ${temperature}</div>
-			<div>Luminosity: ${luminosity}</div>
-		`.trim();
-	}
 	/**
 	 * Reset to original view
 	 */
@@ -137,16 +143,11 @@ constructor(parentElement, textElement) {
 				}
 			})
 			.on("mouseenter", (event, d) => {
-				showTooltip(vis.getTooltipContent(d), event);
 				d3.select(event.currentTarget)
 					.attr("stroke", "#ffffff")
 					.attr("stroke-width", 1.5);
 			})
-			.on("mousemove", (event) => {
-				moveTooltip(event);
-			})
 			.on("mouseleave", (event) => {
-				hideTooltip();
 				d3.select(event.currentTarget)
 					.attr("stroke", null)
 					.attr("stroke-width", null);
@@ -154,7 +155,7 @@ constructor(parentElement, textElement) {
 			.on("click", (e)	=>	{
 				vis.highlightEarth();
 			})
-			.transition() // added transition so the circles move whenever the brush changes
+			.transition()
 			.duration(750)
 			.attr("cx", function(d) {
 				return vis.x(d.x_pos); 
@@ -166,5 +167,14 @@ constructor(parentElement, textElement) {
 				return vis.r(d.rad)
 			});
 		circles.exit().remove()
+
+		vis.toolarea.selectAll("text")
+			.data(vis.displayText)
+			.join("text")
+			.attr("x", 0)
+			.attr("y", (d, i) => i * 32)
+			.attr("fill", "white")        
+			.text(d => d);
+
 	}
 }

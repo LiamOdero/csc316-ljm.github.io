@@ -9,7 +9,7 @@
  * @param  selectedIndex    -- a global 'variable' inside the class that keeps track of the index of the selected area
  */
 
-EPSILON = 1e-1
+EPSILON = 0.75e-1
 
 class StarDisplayChart {
 
@@ -69,38 +69,20 @@ constructor(parentElement, data, comparison) {
 
 		vis.xAxis = d3.axisBottom()
 			.scale(vis.x)
-			.ticks(3)
+			.ticks(0);
 
 		vis.yAxis = d3.axisLeft()
 			.scale(vis.y)
-			.ticks(3);
+			.ticks(0);
 
-		console.log(vis.x.domain())
-
-		let xAxisGroup = vis.svg.append("g")
+		// todo: possibly remove as well
+		vis.svg.append("g")
 			.attr("class", "x-axis axis")
 			.attr("transform", "translate(0," + vis.y(0) + ")");
 
-		xAxisGroup.append("text")    
-						   .attr("class", "axis-title")
-						   .attr("text-anchor", "middle")
-						   .attr("fill", "white")
-						   .text("Distance from Earth (Light Years)")
-						   .attr("transform", "translate(50, -10)")
-						   .attr("opacity", 0.5);
-
-		let yAxisGroup = vis.svg.append("g")
+		vis.svg.append("g")
 			.attr("class", "y-axis axis")
 			.attr("transform", "translate("+ vis.x(0)  + ", 0)");
-
-		yAxisGroup.append("text")    
-						   .attr("class", "axis-title")
-						   .attr("text-anchor", "middle")
-						   .attr("fill", "white")
-						   .text("Distance from Earth (Light Years)")
-						   .attr("transform", "translate(0, -10)")
-						   .attr("opacity", 0.5);
-
 
 		vis.displayData = vis.data.filter((e) =>	{
 			return vis.r(e.rad) > EPSILON;
@@ -119,10 +101,8 @@ constructor(parentElement, data, comparison) {
 		const temperature = Number.isFinite(d.temp) ? `${formatInteger(d.temp)} K` : "Unknown";
 		const luminosity = Number.isFinite(d.lum) ? `${formatSI(d.lum)} W` : "Unknown";
 
-		this.comparison.highlightStar(d)
-
 		return `
-			<div><strong>${name}</strong></div>
+			<div><strong>ID: ${name}</strong></div>
 			<div>Distance: ${distance}</div>
 			<div>Radius: ${radius}</div>
 			<div>Temperature: ${temperature}</div>
@@ -197,6 +177,9 @@ constructor(parentElement, data, comparison) {
 				d3.select(event.currentTarget)
 					.attr("stroke", null)
 					.attr("stroke-width", null);
+			})
+			.on("click", (event, d) =>	{
+				this.comparison.highlightStar(d)
 			})
 			.transition() // added transition so the circles move whenever the brush changes
 			.duration(750)
