@@ -18,48 +18,62 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div class="row justify-content-center" style="height: 15vh">
+<div class="row justify-content-center" style="height: 10vh">
     <div class="align-self-center">
         <h1 style = "color: #FFF">How Small is Earth?</h1>
     </div>
 </div>
 
-<div class="container-fluid">
-  <div class="row justify-content-center g-5">
+<div class="container-fluid px-0">
+  <div class="row g-3" style="margin-top:1vh;">
 
-    <!-- main chart area -->
-    <div class="col-md-8"
-         style="margin-top: 5vh;">
-         
-        <!-- graph -->
-        <div class="row justify-content-center" style="height: 60vh">
-            <div class="align-self-center" id="stacked-area-chart" style="height: 100%; width: 100%; background: rgba(20, 20, 26,0.75); border: thin solid rgb(49, 49, 49); border-radius: 5px;"></div>
+    <!-- main chart area (3/4 width) -->
+    <div class="col-md-9 d-flex flex-column">
+        <!-- stacked area chart -->
+        <div id="stacked-area-chart" 
+             style="height:60vh; background: rgba(20, 20, 26,0.75); border: thin solid rgb(49, 49, 49); border-radius:5px; margin-bottom:10px;">
         </div>
 
         <!-- brush -->
-        <div class="row justify-content-center" style="height: 15vh;  background: rgba(20, 20, 26,0.75)">
-            <div class="align-self-center" id="timeline" style="height: 100%; width: 100%; border: thin solid rgb(49, 49, 49); border-radius: 5px;"></div>
+        <div id="timeline" 
+             style="height:15vh; background: rgba(20, 20, 26,0.75); border: thin solid rgb(49, 49, 49); border-radius:5px;">
         </div>
     </div>
 
-    <div class="col-md-2" style="margin-top: 5vh; background: rgba(20, 20, 26,0.75); border: thin solid rgb(49, 49, 49); border-radius: 5px;">
-        <div class="row justify-content-center" style="height: 60vh; border: thin solid rgb(49, 49, 49); border-radius: 5px;">
-            <div class="align-self-center" id="star-comparison" style="height: 100%; width: 100%;"></div>
+    <!-- sidebar (1/4 width) -->
+    <div class="col-md-3 d-flex flex-column" style="gap:10px;">
+
+        <!-- top row: two side-by-side charts -->
+        <div class="d-flex" style="height:60vh; gap:10px;">
+            <div id="star-comparison" 
+                 style="flex:1; background: rgba(20,20,26,0.75); border: thin solid rgb(49, 49, 49); border-radius:5px;">
+            </div>
+
+            <div id="star-comparison-2" 
+                 style="flex:1; background: rgba(20,20,26,0.75); border: thin solid rgb(49, 49, 49); border-radius:5px;">
+            </div>
         </div>
-        
+
+        <!-- bottom row: matches brush height -->
+        <div id="filter" 
+             style="height:15vh; background: rgba(20,20,26,0.75); border: thin solid rgb(49,49,49); border-radius:5px;">
+            <!-- content here -->
+        </div>
+
     </div>
 
     <!-- brush controls -->
-    <div class="row justify-content-center" style="margin-top: 10px; margin-bottom: 20px;">
+    <div class="row justify-content-center" style="margin-top:10px; margin-bottom:20px; width:100%;">
         <div class="col-auto">
             <button id="reset-brush-btn" class="btn btn-outline-light btn-sm">Reset Brush</button>
         </div>
     </div>
+
+  </div>
 </div>
 
 
 
-  </div>
 </div>
 
 <!-- Load JS libraries -->

@@ -52,9 +52,9 @@ constructor(parentElement, textElement) {
 			.attr("width", totalWidth)
 			.attr("height", toolHeight + vis.margin.top + vis.margin.bottom)
 			.append("g")
-			.attr("transform", "translate(" + 0 + "," + vis.margin.top + ")");
+			.attr("transform", "translate(" + 5 + "," + vis.margin.top + ")");
 
-		const drawHeight = (totalHeight * 3) / 4;
+		const drawHeight = (totalHeight * 2) / 4;
 
 		vis.svg = d3.select("#" + vis.parentElement)
 			.append("svg")
@@ -78,7 +78,7 @@ constructor(parentElement, textElement) {
 			.domain(d3.extent(vis.data, d => d.y_pos));
 
 		vis.r = d3.scaleLinear()
-			.range([0, vis.width / 3])
+			.range([0, drawHeight / 4])
 			.domain(d3.extent(vis.data, d => d.rad));
 
 		vis.svg.append("g")
@@ -96,7 +96,7 @@ constructor(parentElement, textElement) {
 		const formatSI = d3.format(".2s");
 
 		let name = "ID: " + ((star.name) ? star.name : "Unknown star");
-		let distance = "Distance from Earth: " + (Number.isFinite(star.dist) ? `${Math.abs(star.dist).toFixed(2)} ly` : "Unknown");
+		let distance = "Distance: " + (Number.isFinite(star.dist) ? `${Math.abs(star.dist).toFixed(2)} ly` : "Unknown");
 		let radius = "Radius: " + (Number.isFinite(star.rad) ? `${formatSI(star.rad)} km` : "Unknown");
 		let temperature = "Temperature: " + (Number.isFinite(star.temp) ? `${formatInteger(star.temp)} K` : "Unknown");
 		let luminosity = "Luminosity: " + (Number.isFinite(star.lum) ? `${formatSI(star.lum)} W` : "Unknown");
