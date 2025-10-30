@@ -3,8 +3,10 @@
 let areachart, timeline;
 let data;
 
-let RADIUS_SUN= 696340;
-let SUN_LUMINOSITY = 3.83e26
+const RADIUS_SUN= 696340;
+const SUN_LUMINOSITY = 3.83e26;
+// 1mil km to light years
+const LIGHT_YEAR = 9.461e+12;
 
 // Start application by loading the data
 loadData();
@@ -45,6 +47,69 @@ function prepareData(data){
 							rad: +e.Rad * RADIUS_SUN,
 							temp: +e.Teff})
 	});
+
+	// Hard-coded solar system bodies
+	data_cleansed.push({name: "Mercury", 
+						dist:  77 / LIGHT_YEAR, 
+						lum: NaN, 
+						rad:  2439.7,
+						temp: 440})
+
+	data_cleansed.push({name: "Venus", 
+						dist: 241.22 / LIGHT_YEAR, 
+						lum: NaN, 
+						rad:  6051.8,
+						temp: 737})
+
+	data_cleansed.push({name: "Earth", 
+						dist: 0, 
+						lum: NaN, 
+						rad:  6378,
+						temp: 288})
+
+
+	data_cleansed.push({name: "Mars", 
+						dist: 225.30816 / LIGHT_YEAR, 
+						lum: NaN, 
+						rad:  3389.5,
+						temp: 208})
+
+
+	data_cleansed.push({name: "Jupiter", 
+						dist: 714 / LIGHT_YEAR, 
+						lum: NaN, 
+						rad:  69911,
+						temp: 163})
+
+
+	data_cleansed.push({name: "Saturn", 
+						dist: 1311.0 / LIGHT_YEAR, 
+						lum: NaN, 
+						rad:  58232,
+						temp: 133})
+
+
+	data_cleansed.push({name: "Uranus", 
+						dist: 2778.9 / LIGHT_YEAR, 
+						lum: NaN, 
+						rad:  25362,
+						temp: 78})
+
+
+	data_cleansed.push({name: "Neptune", 
+						dist: 4352 / LIGHT_YEAR, 
+						lum: NaN, 
+						rad:  24622,
+						temp: 72})
+
+	
+	data_cleansed.push({name: "Sun", 
+						dist: 148.55, 
+						lum: SUN_LUMINOSITY, 
+						rad:  RADIUS_SUN,
+						temp: 5772})
+
+
 
 	data_cleansed.sort(function(a, b)	{
 		return a.rad - b.rad;
