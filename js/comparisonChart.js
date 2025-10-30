@@ -12,16 +12,23 @@ class ComparisonChart {
 constructor(parentElement, textElement, initEarth) {
     this.parentElement = parentElement;
 	this.textElement = textElement
-    this.data = [{name: "Earth", 
+
+	this.compareData = [];
+	if (initEarth)	{
+		this.compareData.push({name: "Earth", 
 						dist: 0, 
 						lum: NaN, 
 						rad:  6378,
 						temp: 288,
 						x_pos: 0,
-						y_pos: -50}];
+						y_pos: -50})
+	}
+
 	this.initEarth = initEarth;
     this.displayData = []
-	this.displayText = []
+
+	// hacky solution to lack of newlines
+	this.displayText = ["Click on a star in the chart", "to the left to view it here:"]
 	this.colours = ["#ff3300","#fff9fb", "#9dbdff"]
 
 	// Scale defined via http://www.vendian.org/mncharity/dir3/blackbody/UnstableURLs/bbr_color.html 
@@ -70,24 +77,23 @@ constructor(parentElement, textElement, initEarth) {
 
 		vis.x = d3.scaleLinear()
 			.range([0, vis.width])
-			.domain(d3.extent(vis.data, d => d.x_pos));
+			.domain([0, 0]);
 
 		vis.y = d3.scaleLinear()
 			.range([drawHeight, 0])
-			.domain(d3.extent(vis.data, d => d.y_pos));
+			.domain([-50, -50]);
 
 		vis.r = d3.scaleLinear()
 			.range([0, drawHeight / 4])
-			.domain(d3.extent(vis.data, d => d.rad));
+			.domain(d3.extent(vis.compareData, d => d.rad));
 
 		vis.svg.append("g")
 			.attr("class", "x-axis axis")
 			.attr("transform", "translate(0," + vis.y(0) + ")");
 
 		if (vis.initEarth)	{
-			vis.highlightStar(vis.data[0]);
+			vis.highlightStar(vis.compareData[0]);
 		}
-
 		vis.updateVis();
 	}
 	
@@ -95,7 +101,7 @@ constructor(parentElement, textElement, initEarth) {
 		
 		this.displayData = [star];
 		this.r.domain([0, star.rad])
-		
+
 		const formatSI = d3.format(".2e");
 
 		let name = "ID: " + ((star.name) ? star.name : "Unknown star");
@@ -105,25 +111,14 @@ constructor(parentElement, textElement, initEarth) {
 		let luminosity = "Luminosity: " + (Number.isFinite(star.lum) ? `${formatSI(star.lum)} W` : "Unknown");
 
 		this.displayText = [name, distance, radius, temperature, luminosity];
-
 		this.updateVis();
 	}
 
-	highlightEarth()	{
-		this.displayData = this.data
+	clearVis()	{
+		this.displayData = [];
+		this.compareData = [];
+		this.displayText = ["Click on a star in the chart", "to the left to view it here:"];
 		this.updateVis();
-	}
-
-	/**
-	 * Reset to original view
-	 */
-	resetDomain() {
-		let vis = this;
-		vis.displayData = vis.data;
-
-		vis.x.domain(d3.extent(vis.data, d => d.x_pos));
-		vis.y.domain(d3.extent(vis.data, d => d.y_pos));
-		vis.r.domain(d3.extent(vis.data, d => d.r));
 	}
 
 	/*
@@ -161,10 +156,10 @@ constructor(parentElement, textElement, initEarth) {
 			.transition()
 			.duration(750)
 			.attr("cx", function(d) {
-				return vis.x(d.x_pos); 
+				return vis.x(0); 
 			})
 			.attr("cy", function(d) {
-				return vis.y(d.y_pos); 
+				return vis.y(-50); 
 			})
 			.attr("r", function(d) {
 				return vis.r(d.rad)

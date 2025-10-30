@@ -89,6 +89,20 @@ constructor(parentElement, data, comparison1, comparison2) {
 		vis.displayData = vis.data.filter((e) =>	{
 			return vis.r(e.rad) > EPSILON;
 		})
+
+		vis.button1 = d3.select('#' + vis.comparison1.parentElement).append("button")
+		vis.button1.text("Clear")
+			  .on("click",	function(d)	{
+				vis.buttonEvent(d, vis.button1, vis.comparison1)
+			  })
+			  .property("disabled", true);
+
+		vis.button2 = d3.select('#' + vis.comparison2.parentElement).append("button")
+		vis.button2.text("Set to Earth")
+			  .on("click",	function(d)	{
+				vis.buttonEvent(d, vis.button2, vis.comparison2)
+			  })
+													   
 		
         vis.updateVis();
 	}
@@ -116,6 +130,37 @@ constructor(parentElement, data, comparison1, comparison2) {
 	 */
 	filterDisplay()	{
 		this.updateVis()
+	}
+
+	buttonEvent(d, button, comparison)	{
+		let vis = this;
+
+		if (d.target.innerHTML === "Clear")	{
+			vis.currComparison = comparison
+			comparison.clearVis()
+			button.text("Set to Earth")
+
+			if (button === vis.button1)	{
+				vis.button2.property("disabled", true)
+			}	else	{
+				vis.button1.property("disabled", true)
+			}
+		}	else	{
+			comparison.highlightStar({name: "Earth", 
+						dist: 0, 
+						lum: NaN, 
+						rad:  6378,
+						temp: 288,
+						x_pos: 0,
+						y_pos: -50})
+			button.text("Clear")
+				
+			if (button === vis.button1)	{
+				vis.button2.property("disabled", false)
+			}	else	{
+				vis.button1.property("disabled", false)
+			}
+		}
 	}
 
 	/**
@@ -180,7 +225,17 @@ constructor(parentElement, data, comparison1, comparison2) {
 					.attr("stroke-width", null);
 			})
 			.on("click", (event, d) =>	{
-				this.currComparison.highlightStar(d)
+				if (vis.currComparison === vis.comparison1)	{
+					vis.button2.property("disabled", false);
+					vis.button1.text("Clear")
+					this.currComparison.highlightStar(d)
+				}	else	{
+					vis.button1.property("disabled", false);
+					vis.button2.text("Clear")
+					this.currComparison.highlightStar(d)
+				}
+
+				vis.currComparison = null
 			})
 			.transition() // added transition so the circles move whenever the brush changes
 			.duration(750)
