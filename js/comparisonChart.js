@@ -9,7 +9,7 @@
 class ComparisonChart {
 
 // constructor method to initialize StarDisplayChart object
-constructor(parentElement, textElement) {
+constructor(parentElement, textElement, initEarth) {
     this.parentElement = parentElement;
 	this.textElement = textElement
     this.data = [{name: "Earth", 
@@ -19,7 +19,7 @@ constructor(parentElement, textElement) {
 						temp: 288,
 						x_pos: 0,
 						y_pos: -50}];
-
+	this.initEarth = initEarth;
     this.displayData = []
 	this.displayText = []
 	this.colours = ["#ff3300","#fff9fb", "#9dbdff"]
@@ -29,7 +29,6 @@ constructor(parentElement, textElement) {
         .domain([1000, 6500, 35000])
 		.range(this.colours)
 		.clamp(true);
-
 }
 
 	/*
@@ -85,20 +84,24 @@ constructor(parentElement, textElement) {
 			.attr("class", "x-axis axis")
 			.attr("transform", "translate(0," + vis.y(0) + ")");
 
-		this.updateVis();
+		if (vis.initEarth)	{
+			vis.highlightStar(vis.data[0]);
+		}
+
+		vis.updateVis();
 	}
+	
 	highlightStar(star)	{
 		
 		this.displayData = [star];
 		this.r.domain([0, star.rad])
-
-		const formatInteger = d3.format(",.0f");
-		const formatSI = d3.format(".2s");
+		
+		const formatSI = d3.format(".2e");
 
 		let name = "ID: " + ((star.name) ? star.name : "Unknown star");
-		let distance = "Distance: " + (Number.isFinite(star.dist) ? `${Math.abs(star.dist).toFixed(2)} ly` : "Unknown");
+		let distance = "Distance: " + (Number.isFinite(star.dist) ? `${formatSI(Math.abs(star.dist).toFixed(2))} ly` : "Unknown");
 		let radius = "Radius: " + (Number.isFinite(star.rad) ? `${formatSI(star.rad)} km` : "Unknown");
-		let temperature = "Temperature: " + (Number.isFinite(star.temp) ? `${formatInteger(star.temp)} K` : "Unknown");
+		let temperature = "Temperature: " + (Number.isFinite(star.temp) ? `${formatSI(star.temp)} K` : "Unknown");
 		let luminosity = "Luminosity: " + (Number.isFinite(star.lum) ? `${formatSI(star.lum)} W` : "Unknown");
 
 		this.displayText = [name, distance, radius, temperature, luminosity];
@@ -153,7 +156,7 @@ constructor(parentElement, textElement) {
 					.attr("stroke-width", null);
 			})
 			.on("click", (e)	=>	{
-				vis.highlightEarth();
+
 			})
 			.transition()
 			.duration(750)

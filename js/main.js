@@ -19,10 +19,13 @@ function loadData() {
 		console.log(data_cleaned)
         console.log('data loaded ')
 
-		compareChart = new ComparisonChart("star-comparison", "highlight-text")
-		compareChart.initVis();
+		compareChart1 = new ComparisonChart("star-comparison-1" , "highlight-text", true)
+		compareChart1.initVis();
 
-		areachart = new StarDisplayChart("stacked-area-chart", data_cleaned, compareChart);
+		compareChart2 = new ComparisonChart("star-comparison-2" , "highlight-text", false)
+		compareChart2.initVis();
+
+		areachart = new StarDisplayChart("stacked-area-chart", data_cleaned, compareChart1, compareChart2);
 		areachart.initVis();
 		
 		minimap = new Minimap("timeline", data.years, areachart)

@@ -14,11 +14,13 @@ EPSILON = 0.75e-1
 class StarDisplayChart {
 
 // constructor method to initialize StarDisplayChart object
-constructor(parentElement, data, comparison) {
+constructor(parentElement, data, comparison1, comparison2) {
     this.parentElement = parentElement;
     this.data = data;
     this.displayData = data;
-	this.comparison = comparison
+	this.comparison1 = comparison1
+	this.comparison2 = comparison2
+	this.currComparison = this.comparison2;
 	this.colours = ["#ff3300","#fff9fb", "#9dbdff"]
 
 	// Scale defined via http://www.vendian.org/mncharity/dir3/blackbody/UnstableURLs/bbr_color.html 
@@ -92,13 +94,12 @@ constructor(parentElement, data, comparison) {
 	}
 
 	getTooltipContent(d) {
-		const formatInteger = d3.format(",.0f");
-		const formatSI = d3.format(".2s");
+		const formatSI = d3.format(".2e");
 
 		const name = d.name || "Unknown star";
-		const distance = Number.isFinite(d.dist) ? `${Math.abs(d.dist).toFixed(2)} ly` : "Unknown";
+		const distance = Number.isFinite(d.dist) ? `${formatSI(Math.abs(d.dist).toFixed(2))} ly` : "Unknown";
 		const radius = Number.isFinite(d.rad) ? `${formatSI(d.rad)} km` : "Unknown";
-		const temperature = Number.isFinite(d.temp) ? `${formatInteger(d.temp)} K` : "Unknown";
+		const temperature = Number.isFinite(d.temp) ? `${formatSI(d.temp)} K` : "Unknown";
 		const luminosity = Number.isFinite(d.lum) ? `${formatSI(d.lum)} W` : "Unknown";
 
 		return `
@@ -179,7 +180,7 @@ constructor(parentElement, data, comparison) {
 					.attr("stroke-width", null);
 			})
 			.on("click", (event, d) =>	{
-				this.comparison.highlightStar(d)
+				this.currComparison.highlightStar(d)
 			})
 			.transition() // added transition so the circles move whenever the brush changes
 			.duration(750)
