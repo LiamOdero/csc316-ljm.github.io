@@ -17,8 +17,7 @@ class StarDisplayChart {
 constructor(parentElement, data, comparison) {
     this.parentElement = parentElement;
     this.data = data;
-    this.displayData =data;
-	this.get_pos();
+    this.displayData = data;
 	this.comparison = comparison
 	this.colours = ["#ff3300","#fff9fb", "#9dbdff"]
 
@@ -76,6 +75,8 @@ constructor(parentElement, data, comparison) {
 			.scale(vis.y)
 			.ticks(3);
 
+		console.log(vis.x.domain())
+
 		let xAxisGroup = vis.svg.append("g")
 			.attr("class", "x-axis axis")
 			.attr("transform", "translate(0," + vis.y(0) + ")");
@@ -106,25 +107,6 @@ constructor(parentElement, data, comparison) {
 		})
 		
         vis.updateVis();
-	}
-
-	get_pos()	{
-		// For each data point, defines their position on the chart using an offset
-		for (let i = 0; i < this.data.length; i++)	{
-
-			// Randomly determining x and y positions while keeping distance from center
-			// TODO: seeding, for now any filters should just apply on the base data, never change it though
-
-			let x_proportion = Math.random()
-			this.data[i].x_pos = x_proportion * this.data[i].dist * -1;
-			let reflect = Math.random();
-
-
-			this.data[i].y_pos = Math.sqrt(this.data[i].dist ** 2 - this.data[i].x_pos ** 2)
-			if (reflect < 0.5)	{
-				this.data[i].y_pos *= -1
-			}	
-		}
 	}
 
 	getTooltipContent(d) {
