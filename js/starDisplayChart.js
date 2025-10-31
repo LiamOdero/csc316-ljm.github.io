@@ -10,6 +10,13 @@
  */
 
 EPSILON = 0.75e-1
+EARTH = {name: "Earth", 
+						dist: 0, 
+						lum: NaN, 
+						rad:  6378,
+						temp: 288,
+						x_pos: 0,
+						y_pos: -50}
 
 class StarDisplayChart {
 
@@ -137,7 +144,7 @@ constructor(parentElement, data, comparison1, comparison2) {
 
 		if (d.target.innerHTML === "Clear")	{
 			vis.currComparison = comparison
-			comparison.clearVis()
+			vis.clearStar(comparison)
 			button.text("Set to Earth")
 
 			if (button === vis.button1)	{
@@ -146,13 +153,7 @@ constructor(parentElement, data, comparison1, comparison2) {
 				vis.button1.property("disabled", true)
 			}
 		}	else	{
-			comparison.highlightStar({name: "Earth", 
-						dist: 0, 
-						lum: NaN, 
-						rad:  6378,
-						temp: 288,
-						x_pos: 0,
-						y_pos: -50})
+			vis.highlightStar(comparison, EARTH)
 			button.text("Clear")
 				
 			if (button === vis.button1)	{
@@ -161,6 +162,35 @@ constructor(parentElement, data, comparison1, comparison2) {
 				vis.button1.property("disabled", false)
 			}
 		}
+	}
+
+	/**
+	 * A wrapper for clear star that removes comparison from the other star
+	 */
+	clearStar(comparison)	{
+		let vis = this;
+		if (comparison == vis.comparison1)	{
+			vis.comparison2.clearComparison();
+		}	else	{
+			vis.comparison1.clearComparison();
+		}
+		comparison.clearVis();
+		vis.currComparison = comparison;
+	}
+
+	/**
+	 * A wrapper for highlight star that adds a comparison to the other chart
+	 */
+	highlightStar(comparison, star)	{
+		let vis = this;
+
+		if (comparison == vis.comparison1)	{
+			vis.comparison2.compareStar(star);
+		}	else	{
+			vis.comparison1.compareStar(star)
+		}
+		comparison.highlightStar(star);
+		vis.currComparison = null;
 	}
 
 	/**
@@ -225,17 +255,16 @@ constructor(parentElement, data, comparison1, comparison2) {
 					.attr("stroke-width", null);
 			})
 			.on("click", (event, d) =>	{
+
 				if (vis.currComparison === vis.comparison1)	{
 					vis.button2.property("disabled", false);
 					vis.button1.text("Clear")
-					this.currComparison.highlightStar(d)
-				}	else	{
+					vis.highlightStar(vis.currComparison, d)
+				}	else if (vis.currComparison === vis.comparison2)	{
 					vis.button1.property("disabled", false);
 					vis.button2.text("Clear")
-					this.currComparison.highlightStar(d)
+					vis.highlightStar(vis.currComparison, d)
 				}
-
-				vis.currComparison = null
 			})
 			.transition() // added transition so the circles move whenever the brush changes
 			.duration(750)

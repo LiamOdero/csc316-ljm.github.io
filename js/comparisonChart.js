@@ -1,3 +1,10 @@
+EARTH = {name: "Earth", 
+						dist: 0, 
+						lum: NaN, 
+						rad:  6378,
+						temp: 288,
+						x_pos: 0,
+						y_pos: -50}
 
 /*
  * ComparisonChart - ES6 Class
@@ -12,9 +19,8 @@ class ComparisonChart {
 constructor(parentElement, textElement, initEarth) {
     this.parentElement = parentElement;
 	this.textElement = textElement
-
 	this.compareData = [];
-	if (initEarth)	{
+	if (!initEarth)	{
 		this.compareData.push({name: "Earth", 
 						dist: 0, 
 						lum: NaN, 
@@ -92,7 +98,7 @@ constructor(parentElement, textElement, initEarth) {
 			.attr("transform", "translate(0," + vis.y(0) + ")");
 
 		if (vis.initEarth)	{
-			vis.highlightStar(vis.compareData[0]);
+			vis.highlightStar(EARTH);
 		}
 		vis.updateVis();
 	}
@@ -100,7 +106,7 @@ constructor(parentElement, textElement, initEarth) {
 	highlightStar(star)	{
 		
 		this.displayData = [star];
-		this.r.domain([0, star.rad])
+		this.compareData.push(star)
 
 		const formatSI = d3.format(".2e");
 
@@ -114,10 +120,27 @@ constructor(parentElement, textElement, initEarth) {
 		this.updateVis();
 	}
 
+	compareStar(star)	{
+		this.compareData.push(star);
+		this.updateVis();
+	}
+
+	clearComparison()	{
+		// since compare data should always be length 2, the index of the comparison is whatever index the display star
+		// doesnt occupy
+		let displayIndex = 1 - this.compareData.indexOf(this.displayData[0]);
+		this.compareData.splice(displayIndex, 1);
+		this.updateVis();
+	}
+
 	clearVis()	{
+		// remove the displayed star from data to compare, but keep the comparison
+		let displayIndex = this.compareData.indexOf(this.displayData[0]);
+		this.compareData.splice(displayIndex, 1);
+
 		this.displayData = [];
-		this.compareData = [];
 		this.displayText = ["Click on a star in the chart", "to the left to view it here:"];
+
 		this.updateVis();
 	}
 
@@ -127,11 +150,10 @@ constructor(parentElement, textElement, initEarth) {
  	*/
 	updateVis(){
 		let vis = this;
-
+		this.r.domain([0, d3.max(vis.compareData, d => d.rad)]);
 		let circles = vis.svg.selectAll("circle")	
 			.data(vis.displayData);      
 		circles.enter().append("circle")
-
 		.merge(circles)
 			.attr("fill", function(d) {
 				if (d.name === "Earth")	{
