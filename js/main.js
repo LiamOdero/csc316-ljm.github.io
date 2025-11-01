@@ -31,6 +31,9 @@ function loadData() {
 		minimap = new Minimap("timeline", data.years, areachart)
 		minimap.initVis();
 
+		// Set minimap reference in main chart so brush can update it
+		areachart.setMinimap(minimap);
+
 		d3.select("#reset-brush-btn").on("click", () => {
 			minimap.resetBrush();
 		});
@@ -38,6 +41,9 @@ function loadData() {
 		d3.select("#full-extent-btn").on("click", () => {
 			minimap.setFullExtent();
 		});
+
+		// Initialize filters
+		initializeFilters(data_cleaned);
     });
 }
 
@@ -68,4 +74,193 @@ function prepareData(data){
 
 function brushed() {
 
+}
+
+function initializeFilters(data) {
+	const distExtent = d3.extent(data, d => Math.abs(d.dist));
+	const radExtent = d3.extent(data, d => d.rad);
+	const tempExtent = d3.extent(data, d => d.temp);
+	const lumExtent = d3.extent(data.filter(d => !isNaN(d.lum)), d => d.lum);
+
+	// filter values
+	let filters = {
+		distanceMin: distExtent[0],
+		distanceMax: distExtent[1],
+		radiusMin: radExtent[0],
+		radiusMax: radExtent[1],
+		temperatureMin: tempExtent[0],
+		temperatureMax: tempExtent[1],
+		luminosityMin: lumExtent[0],
+		luminosityMax: lumExtent[1]
+	};
+
+	const formatSI = d3.format(".2e");
+
+	// update display values
+	function updateFilterDisplay() {
+		d3.select("#distance-value").text(`${formatSI(filters.distanceMin)} - ${formatSI(filters.distanceMax)}`);
+		d3.select("#radius-value").text(`${formatSI(filters.radiusMin)} - ${formatSI(filters.radiusMax)}`);
+		d3.select("#temp-value").text(`${formatSI(filters.temperatureMin)} - ${formatSI(filters.temperatureMax)}`);
+		d3.select("#lum-value").text(`${formatSI(filters.luminosityMin)} - ${formatSI(filters.luminosityMax)}`);
+	}
+
+	// apply filters to data
+	function applyFilters() {
+		const filterCriteria = {
+			distanceMin: filters.distanceMin,
+			distanceMax: filters.distanceMax,
+			radiusMin: filters.radiusMin,
+			radiusMax: filters.radiusMax,
+			temperatureMin: filters.temperatureMin,
+			temperatureMax: filters.temperatureMax,
+			luminosityMin: filters.luminosityMin,
+			luminosityMax: filters.luminosityMax
+		};
+
+		areachart.applyFilters(filterCriteria);
+		minimap.applyFilters(filterCriteria);
+	}
+
+	// Distance sliders
+	d3.select("#distance-slider-min").on("input", function() {
+		const minPercent = +this.value;
+		const maxPercent = +d3.select("#distance-slider-max").property("value");
+		
+		if (minPercent > maxPercent) {
+			this.value = maxPercent;
+			return;
+		}
+		
+		filters.distanceMin = distExtent[0] + (distExtent[1] - distExtent[0]) * (minPercent / 100);
+		updateFilterDisplay();
+		applyFilters();
+	});
+
+	d3.select("#distance-slider-max").on("input", function() {
+		const maxPercent = +this.value;
+		const minPercent = +d3.select("#distance-slider-min").property("value");
+		
+		if (maxPercent < minPercent) {
+			this.value = minPercent;
+			return;
+		}
+		
+		filters.distanceMax = distExtent[0] + (distExtent[1] - distExtent[0]) * (maxPercent / 100);
+		updateFilterDisplay();
+		applyFilters();
+	});
+
+	// radius sliders
+	d3.select("#radius-slider-min").on("input", function() {
+		const minPercent = +this.value;
+		const maxPercent = +d3.select("#radius-slider-max").property("value");
+		
+		if (minPercent > maxPercent) {
+			this.value = maxPercent;
+			return;
+		}
+		
+		filters.radiusMin = radExtent[0] + (radExtent[1] - radExtent[0]) * (minPercent / 100);
+		updateFilterDisplay();
+		applyFilters();
+	});
+
+	d3.select("#radius-slider-max").on("input", function() {
+		const maxPercent = +this.value;
+		const minPercent = +d3.select("#radius-slider-min").property("value");
+		
+		if (maxPercent < minPercent) {
+			this.value = minPercent;
+			return;
+		}
+		
+		filters.radiusMax = radExtent[0] + (radExtent[1] - radExtent[0]) * (maxPercent / 100);
+		updateFilterDisplay();
+		applyFilters();
+	});
+
+	// temperature sliders
+	d3.select("#temp-slider-min").on("input", function() {
+		const minPercent = +this.value;
+		const maxPercent = +d3.select("#temp-slider-max").property("value");
+		
+		if (minPercent > maxPercent) {
+			this.value = maxPercent;
+			return;
+		}
+		
+		filters.temperatureMin = tempExtent[0] + (tempExtent[1] - tempExtent[0]) * (minPercent / 100);
+		updateFilterDisplay();
+		applyFilters();
+	});
+
+	d3.select("#temp-slider-max").on("input", function() {
+		const maxPercent = +this.value;
+		const minPercent = +d3.select("#temp-slider-min").property("value");
+		
+		if (maxPercent < minPercent) {
+			this.value = minPercent;
+			return;
+		}
+		
+		filters.temperatureMax = tempExtent[0] + (tempExtent[1] - tempExtent[0]) * (maxPercent / 100);
+		updateFilterDisplay();
+		applyFilters();
+	});
+
+	// luminosity sliders
+	d3.select("#lum-slider-min").on("input", function() {
+		const minPercent = +this.value;
+		const maxPercent = +d3.select("#lum-slider-max").property("value");
+		
+		if (minPercent > maxPercent) {
+			this.value = maxPercent;
+			return;
+		}
+		
+		filters.luminosityMin = lumExtent[0] + (lumExtent[1] - lumExtent[0]) * (minPercent / 100);
+		updateFilterDisplay();
+		applyFilters();
+	});
+
+	d3.select("#lum-slider-max").on("input", function() {
+		const maxPercent = +this.value;
+		const minPercent = +d3.select("#lum-slider-min").property("value");
+		
+		if (maxPercent < minPercent) {
+			this.value = minPercent;
+			return;
+		}
+		
+		filters.luminosityMax = lumExtent[0] + (lumExtent[1] - lumExtent[0]) * (maxPercent / 100);
+		updateFilterDisplay();
+		applyFilters();
+	});
+
+	// reset button
+	d3.select("#reset-filter-btn").on("click", () => {
+		filters.distanceMin = distExtent[0];
+		filters.distanceMax = distExtent[1];
+		filters.radiusMin = radExtent[0];
+		filters.radiusMax = radExtent[1];
+		filters.temperatureMin = tempExtent[0];
+		filters.temperatureMax = tempExtent[1];
+		filters.luminosityMin = lumExtent[0];
+		filters.luminosityMax = lumExtent[1];
+
+		d3.select("#distance-slider-min").property("value", 0);
+		d3.select("#distance-slider-max").property("value", 100);
+		d3.select("#radius-slider-min").property("value", 0);
+		d3.select("#radius-slider-max").property("value", 100);
+		d3.select("#temp-slider-min").property("value", 0);
+		d3.select("#temp-slider-max").property("value", 100);
+		d3.select("#lum-slider-min").property("value", 0);
+		d3.select("#lum-slider-max").property("value", 100);
+
+		updateFilterDisplay();
+		applyFilters();
+	});
+
+	// initialize display
+	updateFilterDisplay();
 }

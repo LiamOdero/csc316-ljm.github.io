@@ -29,6 +29,7 @@ constructor(parentElement, data, comparison1, comparison2) {
 	this.comparison2 = comparison2
 	this.currComparison = this.comparison2;
 	this.colours = ["#ff3300","#fff9fb", "#9dbdff"]
+	this.minimap = null; // Reference to minimap for brush updates
 
 	// Scale defined via http://www.vendian.org/mncharity/dir3/blackbody/UnstableURLs/bbr_color.html 
 	this.colorScale = d3.scaleDiverging()
@@ -92,6 +93,29 @@ constructor(parentElement, data, comparison1, comparison2) {
 		vis.svg.append("g")
 			.attr("class", "y-axis axis")
 			.attr("transform", "translate("+ vis.x(0)  + ", 0)");
+
+		// Add brush to main chart
+		vis.brush = d3.brush()
+			.extent([[0, 0], [vis.width, vis.height]])
+			.on("end", function(event) {
+				if (event.selection) {
+					const [[x0, y0], [x1, y1]] = event.selection;
+					
+					// Convert brush pixel coordinates to data domain
+					const xDomain = [vis.x.invert(x0), vis.x.invert(x1)];
+					const yDomain = [vis.y.invert(y1), vis.y.invert(y0)];
+					
+					// Update the chart domain
+					vis.updateDomain(xDomain, yDomain);
+					
+					// Clear the brush selection after applying
+					vis.brushGroup.call(vis.brush.move, null);
+				}
+			});
+
+		vis.brushGroup = vis.svg.append("g")
+			.attr("class", "brush")
+			.call(vis.brush);
 
 		vis.displayData = vis.data.filter((e) =>	{
 			return vis.r(e.rad) > EPSILON;
@@ -215,8 +239,41 @@ constructor(parentElement, data, comparison1, comparison2) {
 		})
 
 		vis.displayData = inRangeData
+		
+		// Update minimap brush to show current view
+		if (vis.minimap) {
+			vis.minimap.updateBrushFromMainChart(xDomain, yDomain);
+		}
+		
 		// axis update
 		vis.updateVis();
+	}
+
+	/**
+	 * Update the chart domain without updating the minimap (used when dragging viewport rect)
+	 */
+	updateDomainWithoutMinimapUpdate(xDomain, yDomain) {
+		let vis = this;
+
+		// scales are updated to the new domain
+		vis.x.domain(xDomain);
+		vis.y.domain(yDomain);
+		let inRangeData;
+
+		inRangeData = vis.data.filter((e) =>	{
+			return xDomain[0] <= e.x_pos && e.x_pos <= xDomain[1] && yDomain[0] <= e.y_pos && e.y_pos <= yDomain[1]  
+		})
+		
+		vis.r.domain([inRangeData[0].rad, inRangeData[inRangeData.length - 1].rad])
+
+		inRangeData = inRangeData.filter((e) =>	{
+			return vis.r(e.rad) > EPSILON;
+		})
+
+		vis.displayData = inRangeData
+		
+		// axis update (without minimap update, and no transition for smooth dragging)
+		vis.updateVis(false);
 	}
 
 	/**
@@ -227,18 +284,62 @@ constructor(parentElement, data, comparison1, comparison2) {
 		vis.updateDomain(vis.originalXDomain, vis.originalYDomain);
 	}
 
-	/*
-	 * The drawing function - should use the D3 update sequence (enter, update, exit)
- 	* Function parameters only needed if different kinds of updates are needed
- 	*/
-	updateVis(){
+	/**
+	 * Set the minimap reference for brush updates
+	 */
+	setMinimap(minimap) {
+		this.minimap = minimap;
+	}
+
+	/**
+	 * Apply filters to fade out stars that don't match criteria
+	 */
+	applyFilters(filterCriteria) {
+		let vis = this;
+		
+		vis.svg.selectAll("circle")
+			.each(function(d) {
+				const distOk = Math.abs(d.dist) >= filterCriteria.distanceMin && Math.abs(d.dist) <= filterCriteria.distanceMax;
+				const radOk = d.rad >= filterCriteria.radiusMin && d.rad <= filterCriteria.radiusMax;
+				const tempOk = d.temp >= filterCriteria.temperatureMin && d.temp <= filterCriteria.temperatureMax;
+				const lumOk = isNaN(d.lum) || (d.lum >= filterCriteria.luminosityMin && d.lum <= filterCriteria.luminosityMax);
+				const matches = distOk && radOk && tempOk && lumOk;
+				
+				const circle = d3.select(this);
+				const originalRadius = vis.r(d.rad);
+				
+				if (matches) {
+					// star matches
+					circle.transition()
+						.duration(500)
+						.attr("opacity", 1)
+						.attr("r", originalRadius);
+				} else {
+					// star doesn't match filter, make it shrink as it fades away
+					circle.transition()
+						.duration(500)
+						.attr("opacity", 0)
+						.attr("r", 0.1);
+				}
+			});
+	}
+
+	updateVis(useTransition = true){
 		let vis = this;
 
 		let circles = vis.svg.selectAll("circle")
-			.data(vis.displayData);      
+			.data(vis.displayData, d => d.name);      
 
-		circles.enter().append("circle")
-		.merge(circles)
+		// Set initial position for entering circles so they don't start from (0,0)
+		let enter = circles.enter().append("circle")
+			.attr("cx", function(d) { return vis.x(d.x_pos); })
+			.attr("cy", function(d) { return vis.y(d.y_pos); })
+			.attr("r", function(d) { return vis.r(d.rad); })
+			.attr("fill", function(d) { return vis.colorScale(d.temp); })
+			.attr("opacity", 0); // Start invisible for smooth fade-in
+
+		// Merge and update both entering and existing circles
+		let merged = enter.merge(circles)
 			.on("mouseenter", (event, d) => {
 				showTooltip(vis.getTooltipContent(d), event);
 				d3.select(event.currentTarget)
@@ -265,9 +366,14 @@ constructor(parentElement, data, comparison1, comparison2) {
 					vis.button2.text("Clear")
 					vis.highlightStar(vis.currComparison, d)
 				}
-			})
-			.transition() // added transition so the circles move whenever the brush changes
-			.duration(750)
+			});
+
+		// Apply transition only if requested (not during viewport dragging)
+		if (useTransition) {
+			merged = merged.transition().duration(750);
+		}
+
+		merged
 			.attr("cx", function(d) {
 				return vis.x(d.x_pos); 
 			})
@@ -279,7 +385,9 @@ constructor(parentElement, data, comparison1, comparison2) {
 			})
 			.attr("fill", function(d) {
 				return vis.colorScale(d.temp)	
-			});
+			})
+			.attr("opacity", 1); // Default to visible
+			
 		circles.exit().remove()
 
 		vis.svg.select(".x-axis").call(vis.xAxis);
