@@ -373,6 +373,7 @@ constructor(parentElement, data, comparison1, comparison2) {
 			merged = merged.transition().duration(750);
 		}
 
+		// update positions and size
 		merged
 			.attr("cx", function(d) {
 				return vis.x(d.x_pos); 
@@ -385,8 +386,12 @@ constructor(parentElement, data, comparison1, comparison2) {
 			})
 			.attr("fill", function(d) {
 				return vis.colorScale(d.temp)	
-			})
-			.attr("opacity", 1); // Default to visible
+			});
+		
+		enter
+			.transition()
+			.duration(useTransition ? 750 : 0)
+			.attr("opacity", 1);
 			
 		circles.exit().remove()
 
