@@ -18,9 +18,9 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div class="row justify-content-center" style="height: 10vh">
+<div class="row justify-content-center" style="height: 10vh; margin-bottom: 5vh;">
     <div class="align-self-center">
-        <h1 style = "color: #FFF">How Small is Earth?</h1>
+        <h1 style = "color: #FFF; font-weight: 800;">How Small is Earth?</h1>
     </div>
 </div>
 
@@ -57,12 +57,12 @@
         <!-- bottom row: matches brush height -->
         <div id="filter" 
              style="height:15vh; background: rgba(20,20,26,0.75); border: thin solid rgb(49,49,49); border-radius:5px; padding:10px; overflow-y:auto; color:#FFF;">
-            <h6 style="margin-bottom:8px; font-size:14px;">Filter Stars</h6>
+            <h6 style="margin-bottom:8px; font-size:14px; font-weight: 600;">Filter Stars</h6>
             
             <!-- Distance Filter -->
             <div style="margin-bottom:8px;">
                 <label style="font-size:11px; display:flex; justify-content:space-between;">
-                    <span>Distance (ly)</span>
+                    <span>Distance (light years)</span>
                     <span id="distance-value">0 - ∞</span>
                 </label>
                 <div class="range-slider-container">
@@ -74,7 +74,7 @@
             <!-- Radius Filter -->
             <div style="margin-bottom:8px;">
                 <label style="font-size:11px; display:flex; justify-content:space-between;">
-                    <span>Radius (km)</span>
+                    <span>Radius (kilometers)</span>
                     <span id="radius-value">0 - ∞</span>
                 </label>
                 <div class="range-slider-container">
@@ -86,7 +86,7 @@
             <!-- Temperature Filter -->
             <div style="margin-bottom:8px;">
                 <label style="font-size:11px; display:flex; justify-content:space-between;">
-                    <span>Temperature (K)</span>
+                    <span>Temperature (kelvin)</span>
                     <span id="temp-value">0 - ∞</span>
                 </label>
                 <div class="range-slider-container">
@@ -98,7 +98,7 @@
             <!-- Luminosity Filter -->
             <div style="margin-bottom:8px;">
                 <label style="font-size:11px; display:flex; justify-content:space-between;">
-                    <span>Luminosity (W)</span>
+                    <span>Luminosity (watts)</span>
                     <span id="lum-value">0 - ∞</span>
                 </label>
                 <div class="range-slider-container">
