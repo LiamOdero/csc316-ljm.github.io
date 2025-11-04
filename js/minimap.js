@@ -22,6 +22,7 @@ class Minimap {
 		this.zoomStack = []; // stack to store zoom history
 		this.isPanning = false; // flag to track panning state
 		this.isDraggingViewport = false; // flag to track viewport drag state
+		this.currentBrushDomain = null; // domain of brush on minimap
 	}
 
 	// create initVis method for Timeline class
@@ -68,12 +69,13 @@ class Minimap {
 		vis.updateMinimapStars();
 
 		// Add draggable background for panning (add this first, before viewport)
+		// DISABLED: Panning functionality removed per user request
 		vis.panArea = vis.svg.append("rect")
 			.attr("class", "pan-area")
 			.attr("width", vis.width)
 			.attr("height", vis.height)
 			.attr("fill", "transparent")
-			.style("cursor", "grab")
+			.style("cursor", "default")
 			.lower(); // Put it behind everything
 
 		// Add viewport rectangle to show main chart's current view (add after pan-area)
@@ -123,68 +125,6 @@ class Minimap {
 			});
 
 		vis.viewportRect.call(viewportDrag);
-
-		// Add panning functionality using drag on the pan-area
-		vis.isPanning = false;
-		let dragStartX, dragStartY, startXDomain, startYDomain;
-
-		const drag = d3.drag()
-			.on("start", function(event) {
-				vis.isPanning = true;
-				dragStartX = event.x;
-				dragStartY = event.y;
-				startXDomain = [...vis.currentXDomain];
-				startYDomain = [...vis.currentYDomain];
-				d3.select(this).style("cursor", "grabbing");
-			})
-			.on("drag", function(event) {
-				const dx = event.x - dragStartX;
-				const dy = event.y - dragStartY;
-
-				// Convert pixel movement to data domain shift
-				const xRange = startXDomain[1] - startXDomain[0];
-				const yRange = startYDomain[1] - startYDomain[0];
-				const xShift = -(dx / vis.width) * xRange;
-				const yShift = (dy / vis.height) * yRange; // inverted because y scale is flipped
-
-				// Calculate new domain
-				let newXDomain = [startXDomain[0] + xShift, startXDomain[1] + xShift];
-				let newYDomain = [startYDomain[0] + yShift, startYDomain[1] + yShift];
-
-				// Clamp to data bounds
-				const chartData = vis._mainChart.data;
-				const maxXDomain = d3.extent(chartData, d => d.x_pos);
-				const maxYDomain = d3.extent(chartData, d => d.y_pos);
-
-				if (newXDomain[0] < maxXDomain[0]) {
-					newXDomain = [maxXDomain[0], maxXDomain[0] + xRange];
-				}
-				if (newXDomain[1] > maxXDomain[1]) {
-					newXDomain = [maxXDomain[1] - xRange, maxXDomain[1]];
-				}
-				if (newYDomain[0] < maxYDomain[0]) {
-					newYDomain = [maxYDomain[0], maxYDomain[0] + yRange];
-				}
-				if (newYDomain[1] > maxYDomain[1]) {
-					newYDomain = [maxYDomain[1] - yRange, maxYDomain[1]];
-				}
-
-				vis.currentXDomain = newXDomain;
-				vis.currentYDomain = newYDomain;
-
-				// Update minimap view without transitions for smooth panning
-				vis.x.domain(vis.currentXDomain);
-				vis.y.domain(vis.currentYDomain);
-				vis.updateMinimapStars(false); // No transition during drag
-			})
-			.on("end", function() {
-				vis.isPanning = false;
-				d3.select(this).style("cursor", "grab");
-				// Filter stars after panning ends
-				vis.updateMinimapStars(true);
-			});
-
-		vis.panArea.call(drag);
 	}
 
 	/**
@@ -220,7 +160,7 @@ class Minimap {
 	}
 
 	/**
-	 * update the star's on the minimap based on current domain (currently for zooming in and out)
+	 * update star's on the minimap based on current domain (currently for zooming in and out)
 	 */
 	updateMinimapStars(useTransition = true) {
 		let vis = this;
@@ -236,6 +176,12 @@ class Minimap {
 			);
 		}
 
+		// radius on minimap scales relative to how zoomed in the minimap is.
+		if (displayData.length > 0) {
+			const radExtent = d3.extent(displayData, d => d.rad);
+			vis.r.domain(radExtent);
+		}
+
 		const circles = vis.starsGroup.selectAll("circle")
 			.data(displayData, d => d.name); 
 
@@ -248,13 +194,12 @@ class Minimap {
 			.attr("opacity", 1)
 			.merge(circles)
 			.each(function() {
-				const selection = useTransition ? d3.select(this).transition().duration(0) : d3.select(this);
+				const selection = useTransition ? d3.select(this).transition().duration(800) : d3.select(this);
 				selection
 					.attr("cx", d => vis.x(d.x_pos))
 					.attr("cy", d => vis.y(d.y_pos))
 					.attr("r", d => vis.r(d.rad))
 					.attr("fill", d => vis._mainChart.colorScale(d.temp));
-					// Don't set opacity here - let filters control it
 			});
 
 		circles.exit().remove();
@@ -263,12 +208,17 @@ class Minimap {
 	/**
 	 * update entire minimap
 	 */
-	updateMinimapView() {
+	updateMinimapView(useTransition = true) {
 		let vis = this;
 		vis.x.domain(vis.currentXDomain);
 		vis.y.domain(vis.currentYDomain);
 
-		vis.updateMinimapStars();
+		vis.updateMinimapStars(useTransition);
+		
+		// Update viewport rectangle if brush is active
+		if (vis.currentBrushDomain) {
+			vis.updateViewportRectangle(vis.currentBrushDomain.x, vis.currentBrushDomain.y, useTransition);
+		}
 	}
 
 	/**
@@ -291,9 +241,56 @@ class Minimap {
 
 		// Hide viewport rectangle if viewing full extent
 		if (isFullExtent) {
-			vis.viewportRect.attr("opacity", 0);
+			vis.currentBrushDomain = null;
+			vis.viewportRect
+				.transition()
+				.duration(800)
+				.attr("opacity", 0);
 			return;
 		}
+
+		// Store current brush domain for zoom updates
+		vis.currentBrushDomain = { x: xDomain, y: yDomain };
+
+		// Zoom minimap to show area around the brush
+		const xRange = xDomain[1] - xDomain[0];
+		const yRange = yDomain[1] - yDomain[0];
+		const xCenter = (xDomain[0] + xDomain[1]) / 2;
+		const yCenter = (yDomain[0] + yDomain[1]) / 2;
+		
+		// Zoom factor: make the minimap show 3x the brush area
+		const zoomFactor = 3;
+		
+		let newXDomain = [
+			xCenter - (xRange * zoomFactor) / 2,
+			xCenter + (xRange * zoomFactor) / 2
+		];
+		let newYDomain = [
+			yCenter - (yRange * zoomFactor) / 2,
+			yCenter + (yRange * zoomFactor) / 2
+		];
+		
+		// Clamp to full data extent
+		newXDomain[0] = Math.max(newXDomain[0], fullXDomain[0]);
+		newXDomain[1] = Math.min(newXDomain[1], fullXDomain[1]);
+		newYDomain[0] = Math.max(newYDomain[0], fullYDomain[0]);
+		newYDomain[1] = Math.min(newYDomain[1], fullYDomain[1]);
+		
+		// Update minimap domain
+		vis.currentXDomain = newXDomain;
+		vis.currentYDomain = newYDomain;
+		vis.x.domain(vis.currentXDomain);
+		vis.y.domain(vis.currentYDomain);
+		
+		// Update minimap view with transition
+		vis.updateMinimapView(true);
+	}
+
+	/**
+	 * Update viewport rectangle position and size
+	 */
+	updateViewportRectangle(xDomain, yDomain, useTransition = true) {
+		let vis = this;
 
 		// Check if domains are within current minimap view
 		const inView = xDomain[0] >= vis.currentXDomain[0] && 
@@ -308,8 +305,12 @@ class Minimap {
 			const y0 = vis.y(yDomain[1]); // y scale is inverted
 			const y1 = vis.y(yDomain[0]);
 
-			// Update viewport rectangle to show current view
-			vis.viewportRect
+			// Update viewport rectangle
+			const rect = useTransition ? 
+				vis.viewportRect.transition().duration(800) : 
+				vis.viewportRect;
+			
+			rect
 				.attr("x", x0)
 				.attr("y", y0)
 				.attr("width", x1 - x0)
@@ -317,7 +318,10 @@ class Minimap {
 				.attr("opacity", 1);
 		} else {
 			// Hide viewport rectangle if main chart view is outside minimap
-			vis.viewportRect.attr("opacity", 0);
+			const rect = useTransition ? 
+				vis.viewportRect.transition().duration(800) : 
+				vis.viewportRect;
+			rect.attr("opacity", 0);
 		}
 	}
 
@@ -328,7 +332,7 @@ class Minimap {
 		let vis = this;
 		
 		// Check each star against filter criteria and update opacity + radius
-		vis.svg.select('.stars-group').selectAll("circle")
+		vis.starsGroup.selectAll("circle")
 			.each(function(d) {
 				const distOk = Math.abs(d.dist) >= filterCriteria.distanceMin && Math.abs(d.dist) <= filterCriteria.distanceMax;
 				const radOk = d.rad >= filterCriteria.radiusMin && d.rad <= filterCriteria.radiusMax;
@@ -367,11 +371,19 @@ class Minimap {
 			y: [...vis.currentYDomain]
 		});
 
+		// Calculate center (use brush center if available, otherwise minimap center)
+		let xCenter, yCenter;
+		if (vis.currentBrushDomain) {
+			xCenter = (vis.currentBrushDomain.x[0] + vis.currentBrushDomain.x[1]) / 2;
+			yCenter = (vis.currentBrushDomain.y[0] + vis.currentBrushDomain.y[1]) / 2;
+		} else {
+			xCenter = (vis.currentXDomain[0] + vis.currentXDomain[1]) / 2;
+			yCenter = (vis.currentYDomain[0] + vis.currentYDomain[1]) / 2;
+		}
+
 		// Calculate new domain (zoom in by 50%)
 		const xRange = vis.currentXDomain[1] - vis.currentXDomain[0];
 		const yRange = vis.currentYDomain[1] - vis.currentYDomain[0];
-		const xCenter = (vis.currentXDomain[0] + vis.currentXDomain[1]) / 2;
-		const yCenter = (vis.currentYDomain[0] + vis.currentYDomain[1]) / 2;
 
 		vis.currentXDomain = [
 			xCenter - xRange * 0.25,
@@ -382,7 +394,7 @@ class Minimap {
 			yCenter + yRange * 0.25
 		];
 
-		vis.updateMinimapView();
+		vis.updateMinimapView(true);
 	}
 
 	/**
@@ -398,10 +410,18 @@ class Minimap {
 			vis.currentYDomain = previousZoom.y;
 		} else {
 			// If no history, zoom out by 2x
+			// Calculate center (use brush center if available, otherwise minimap center)
+			let xCenter, yCenter;
+			if (vis.currentBrushDomain) {
+				xCenter = (vis.currentBrushDomain.x[0] + vis.currentBrushDomain.x[1]) / 2;
+				yCenter = (vis.currentBrushDomain.y[0] + vis.currentBrushDomain.y[1]) / 2;
+			} else {
+				xCenter = (vis.currentXDomain[0] + vis.currentXDomain[1]) / 2;
+				yCenter = (vis.currentYDomain[0] + vis.currentYDomain[1]) / 2;
+			}
+
 			const xRange = vis.currentXDomain[1] - vis.currentXDomain[0];
 			const yRange = vis.currentYDomain[1] - vis.currentYDomain[0];
-			const xCenter = (vis.currentXDomain[0] + vis.currentXDomain[1]) / 2;
-			const yCenter = (vis.currentYDomain[0] + vis.currentYDomain[1]) / 2;
 
 			vis.currentXDomain = [
 				xCenter - xRange,
@@ -423,6 +443,6 @@ class Minimap {
 			vis.currentYDomain[1] = Math.min(vis.currentYDomain[1], maxYDomain[1]);
 		}
 
-		vis.updateMinimapView();
+		vis.updateMinimapView(true);
 	}
 }

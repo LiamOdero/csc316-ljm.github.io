@@ -57,66 +57,14 @@
         <!-- bottom row: matches brush height -->
         <div id="filter" 
              style="height:15vh; background: rgba(20,20,26,0.75); border: thin solid rgb(49,49,49); border-radius:5px; padding:10px; overflow-y:auto; color:#FFF;">
-            <h6 style="margin-bottom:8px; font-size:14px; font-weight: 600;">Filter Stars</h6>
-            
-            <!-- Distance Filter -->
-            <div style="margin-bottom:8px;">
-                <label style="font-size:11px; display:flex; justify-content:space-between;">
-                    <span>Distance (light years)</span>
-                    <span id="distance-value">0 - ∞</span>
-                </label>
-                <div class="range-slider-container">
-                    <input type="range" id="distance-slider-min" class="range-min" min="0" max="100" value="0">
-                    <input type="range" id="distance-slider-max" class="range-max" min="0" max="100" value="100">
-                </div>
-            </div>
-            
-            <!-- Radius Filter -->
-            <div style="margin-bottom:8px;">
-                <label style="font-size:11px; display:flex; justify-content:space-between;">
-                    <span>Radius (kilometers)</span>
-                    <span id="radius-value">0 - ∞</span>
-                </label>
-                <div class="range-slider-container">
-                    <input type="range" id="radius-slider-min" class="range-min" min="0" max="100" value="0">
-                    <input type="range" id="radius-slider-max" class="range-max" min="0" max="100" value="100">
-                </div>
-            </div>
-            
-            <!-- Temperature Filter -->
-            <div style="margin-bottom:8px;">
-                <label style="font-size:11px; display:flex; justify-content:space-between;">
-                    <span>Temperature (kelvin)</span>
-                    <span id="temp-value">0 - ∞</span>
-                </label>
-                <div class="range-slider-container">
-                    <input type="range" id="temp-slider-min" class="range-min" min="0" max="100" value="0">
-                    <input type="range" id="temp-slider-max" class="range-max" min="0" max="100" value="100">
-                </div>
-            </div>
-            
-            <!-- Luminosity Filter -->
-            <div style="margin-bottom:8px;">
-                <label style="font-size:11px; display:flex; justify-content:space-between;">
-                    <span>Luminosity (watts)</span>
-                    <span id="lum-value">0 - ∞</span>
-                </label>
-                <div class="range-slider-container">
-                    <input type="range" id="lum-slider-min" class="range-min" min="0" max="100" value="0">
-                    <input type="range" id="lum-slider-max" class="range-max" min="0" max="100" value="100">
-                </div>
-            </div>
-            
-            <button id="reset-filter-btn" class="btn btn-outline-light btn-sm" style="width:100%; margin-top:5px; font-size:11px;">Reset Filters</button>
+            <!-- Filters will be rendered here by D3 -->
         </div>
 
     </div>
 
-    <!-- brush controls -->
-    <div class="row justify-content-center" style="margin-top:10px; margin-bottom:20px; width:100%;">
-        <div class="col-auto">
-            <button id="reset-brush-btn" class="btn btn-outline-light btn-sm">Reset Brush</button>
-        </div>
+    <!-- brush and minimap controls -->
+    <div id="controls-container" class="row justify-content-center" style="margin-top:10px; margin-bottom:20px; width:100%;">
+        <!-- Controls will be rendered here by D3 -->
     </div>
 
   </div>
@@ -136,9 +84,11 @@
 <script src="js/tooltip.js"></script>
 
 <!-- Visualization objects -->
- <script src="js/comparisonChart.js"></script>
+<script src="js/comparisonChart.js"></script>
 <script src="js/starDisplayChart.js"></script>
 <script src="js/minimap.js"></script>
+<script src="js/filters.js"></script>
+<script src="js/controls.js"></script>
 
 <!-- Load data, create visualizations -->
 <script src="js/main.js"></script>
