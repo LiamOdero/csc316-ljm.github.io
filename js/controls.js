@@ -16,20 +16,26 @@ class Controls {
 	initVis() {
 		let vis = this;
 
-		// Create SVG for button controls
-		const controlsContainer = d3.select("#" + vis.parentElement);
+		// Select the minimap container (timeline)
+		const minimapContainer = d3.select("#timeline");
 		
-		// Create button group using D3
-		const buttonGroup = controlsContainer.append("div")
+		// button group - positioned at bottom of minimap
+		const buttonGroup = minimapContainer.append("div")
 			.attr("class", "d3-controls")
+			.style("position", "absolute")
+			.style("bottom", "10px")
+			.style("left", "50%")
+			.style("transform", "translateX(-50%)")
 			.style("display", "flex")
 			.style("justify-content", "center")
-			.style("gap", "10px")
-			.style("margin", "10px 0 20px 0");
+			.style("gap", "8px")
+			.style("z-index", "10");
 
 		// Reset Brush Button
 		vis.resetBrushBtn = buttonGroup.append("button")
 			.attr("class", "btn btn-outline-light btn-sm")
+			.style("font-size", "11px")
+			.style("padding", "3px 10px")
 			.text("Reset Brush")
 			.on("click", () => {
 				vis.minimap.resetBrush();
@@ -39,6 +45,8 @@ class Controls {
 		vis.zoomInBtn = buttonGroup.append("button")
 			.attr("class", "btn btn-outline-light btn-sm")
 			.attr("title", "Zoom In Minimap")
+			.style("font-size", "11px")
+			.style("padding", "3px 10px")
 			.text("Zoom In")
 			.on("click", () => {
 				vis.minimap.zoomIn();
@@ -48,6 +56,8 @@ class Controls {
 		vis.zoomOutBtn = buttonGroup.append("button")
 			.attr("class", "btn btn-outline-light btn-sm")
 			.attr("title", "Zoom Out Minimap")
+			.style("font-size", "11px")
+			.style("padding", "3px 10px")
 			.text("Zoom Out")
 			.on("click", () => {
 				vis.minimap.zoomOut();

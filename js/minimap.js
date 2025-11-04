@@ -23,6 +23,7 @@ class Minimap {
 		this.isPanning = false; // flag to track panning state
 		this.isDraggingViewport = false; // flag to track viewport drag state
 		this.currentBrushDomain = null; // domain of brush on minimap
+		this.currentFilterCriteria = null; // store current filter state
 	}
 
 	// create initVis method for Timeline class
@@ -193,13 +194,29 @@ class Minimap {
 			.attr("fill", d => vis._mainChart.colorScale(d.temp))
 			.attr("opacity", 1)
 			.merge(circles)
-			.each(function() {
+			.each(function(d) {
 				const selection = useTransition ? d3.select(this).transition().duration(800) : d3.select(this);
 				selection
 					.attr("cx", d => vis.x(d.x_pos))
 					.attr("cy", d => vis.y(d.y_pos))
 					.attr("r", d => vis.r(d.rad))
 					.attr("fill", d => vis._mainChart.colorScale(d.temp));
+				
+				// Apply current filter criteria to ensure consistency
+				if (vis.currentFilterCriteria) {
+					const distOk = Math.abs(d.dist) >= vis.currentFilterCriteria.distanceMin && Math.abs(d.dist) <= vis.currentFilterCriteria.distanceMax;
+					const radOk = d.rad >= vis.currentFilterCriteria.radiusMin && d.rad <= vis.currentFilterCriteria.radiusMax;
+					const tempOk = d.temp >= vis.currentFilterCriteria.temperatureMin && d.temp <= vis.currentFilterCriteria.temperatureMax;
+					const lumOk = isNaN(d.lum) || (d.lum >= vis.currentFilterCriteria.luminosityMin && d.lum <= vis.currentFilterCriteria.luminosityMax);
+					const matches = distOk && radOk && tempOk && lumOk;
+					
+					if (!matches) {
+						// Star doesn't match filter - fade and shrink
+						selection
+							.attr("opacity", 0)
+							.attr("r", 0.1);
+					}
+				}
 			});
 
 		circles.exit().remove();
@@ -330,6 +347,9 @@ class Minimap {
 	 */
 	applyFilters(filterCriteria) {
 		let vis = this;
+		
+		// Store the current filter criteria so we can reapply when panning
+		vis.currentFilterCriteria = filterCriteria;
 		
 		// Check each star against filter criteria and update opacity + radius
 		vis.starsGroup.selectAll("circle")

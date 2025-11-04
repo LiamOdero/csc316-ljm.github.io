@@ -30,6 +30,7 @@ constructor(parentElement, data, comparison1, comparison2) {
 	this.currComparison = this.comparison2;
 	this.colours = ["#ff3300","#fff9fb", "#9dbdff"]
 	this.minimap = null; // Reference to minimap for brush updates
+	this.currentFilterCriteria = null; // Store current filter state
 
 	// Scale defined via http://www.vendian.org/mncharity/dir3/blackbody/UnstableURLs/bbr_color.html 
 	this.colorScale = d3.scaleDiverging()
@@ -123,16 +124,19 @@ constructor(parentElement, data, comparison1, comparison2) {
 
 		vis.button1 = d3.select('#' + vis.comparison1.parentElement).append("button")
 		vis.button1.text("Clear")
-			  .on("click",	function(d)	{
-				vis.buttonEvent(d, vis.button1, vis.comparison1)
-			  })
-			  .property("disabled", true);
+			.attr("class", "btn btn-outline-light btn-sm")
+			.on("click",	function(d)	{
+			vis.buttonEvent(d, vis.button1, vis.comparison1)
+			})
+			.property("disabled", true);
 
 		vis.button2 = d3.select('#' + vis.comparison2.parentElement).append("button")
-		vis.button2.text("Set to Earth")
-			  .on("click",	function(d)	{
-				vis.buttonEvent(d, vis.button2, vis.comparison2)
-			  })
+		vis.button2
+			.attr("class", "btn btn-outline-light btn-sm")
+			.text("Set to Earth")
+			.on("click",	function(d)	{
+			vis.buttonEvent(d, vis.button2, vis.comparison2)
+			})
 													   
 		
         vis.updateVis();
@@ -297,6 +301,9 @@ constructor(parentElement, data, comparison1, comparison2) {
 	applyFilters(filterCriteria) {
 		let vis = this;
 		
+		// Store the current filter criteria
+		vis.currentFilterCriteria = filterCriteria;
+		
 		vis.svg.selectAll("circle")
 			.each(function(d) {
 				const distOk = Math.abs(d.dist) >= filterCriteria.distanceMin && Math.abs(d.dist) <= filterCriteria.distanceMax;
@@ -334,9 +341,35 @@ constructor(parentElement, data, comparison1, comparison2) {
 		let enter = circles.enter().append("circle")
 			.attr("cx", function(d) { return vis.x(d.x_pos); })
 			.attr("cy", function(d) { return vis.y(d.y_pos); })
-			.attr("r", function(d) { return vis.r(d.rad); })
+			.attr("r", function(d) { 
+				// Apply filter state for newly entering stars
+				if (vis.currentFilterCriteria) {
+					const distOk = Math.abs(d.dist) >= vis.currentFilterCriteria.distanceMin && Math.abs(d.dist) <= vis.currentFilterCriteria.distanceMax;
+					const radOk = d.rad >= vis.currentFilterCriteria.radiusMin && d.rad <= vis.currentFilterCriteria.radiusMax;
+					const tempOk = d.temp >= vis.currentFilterCriteria.temperatureMin && d.temp <= vis.currentFilterCriteria.temperatureMax;
+					const lumOk = isNaN(d.lum) || (d.lum >= vis.currentFilterCriteria.luminosityMin && d.lum <= vis.currentFilterCriteria.luminosityMax);
+					const matches = distOk && radOk && tempOk && lumOk;
+					if (!matches) {
+						return 0.1; // Filtered out
+					}
+				}
+				return vis.r(d.rad); 
+			})
 			.attr("fill", function(d) { return vis.colorScale(d.temp); })
-			.attr("opacity", 0); // Start invisible for smooth fade-in
+			.attr("opacity", function(d) {
+				// Apply filter state for newly entering stars
+				if (vis.currentFilterCriteria) {
+					const distOk = Math.abs(d.dist) >= vis.currentFilterCriteria.distanceMin && Math.abs(d.dist) <= vis.currentFilterCriteria.distanceMax;
+					const radOk = d.rad >= vis.currentFilterCriteria.radiusMin && d.rad <= vis.currentFilterCriteria.radiusMax;
+					const tempOk = d.temp >= vis.currentFilterCriteria.temperatureMin && d.temp <= vis.currentFilterCriteria.temperatureMax;
+					const lumOk = isNaN(d.lum) || (d.lum >= vis.currentFilterCriteria.luminosityMin && d.lum <= vis.currentFilterCriteria.luminosityMax);
+					const matches = distOk && radOk && tempOk && lumOk;
+					if (!matches) {
+						return 0; // Filtered out
+					}
+				}
+				return 0; // Start invisible for smooth fade-in
+			});
 
 		// Merge and update both entering and existing circles
 		let merged = enter.merge(circles)
@@ -391,7 +424,20 @@ constructor(parentElement, data, comparison1, comparison2) {
 		enter
 			.transition()
 			.duration(useTransition ? 750 : 0)
-			.attr("opacity", 1);
+			.attr("opacity", function(d) {
+				// Fade in to full opacity only if not filtered
+				if (vis.currentFilterCriteria) {
+					const distOk = Math.abs(d.dist) >= vis.currentFilterCriteria.distanceMin && Math.abs(d.dist) <= vis.currentFilterCriteria.distanceMax;
+					const radOk = d.rad >= vis.currentFilterCriteria.radiusMin && d.rad <= vis.currentFilterCriteria.radiusMax;
+					const tempOk = d.temp >= vis.currentFilterCriteria.temperatureMin && d.temp <= vis.currentFilterCriteria.temperatureMax;
+					const lumOk = isNaN(d.lum) || (d.lum >= vis.currentFilterCriteria.luminosityMin && d.lum <= vis.currentFilterCriteria.luminosityMax);
+					const matches = distOk && radOk && tempOk && lumOk;
+					if (!matches) {
+						return 0; // Keep filtered out
+					}
+				}
+				return 1;
+			});
 			
 		circles.exit().remove()
 

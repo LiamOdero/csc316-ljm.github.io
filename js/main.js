@@ -74,5 +74,4 @@ function brushed() {
 
 }
 
-// Old initializeFilters function removed - now using D3-based Filters class
 

@@ -192,8 +192,10 @@ constructor(parentElement, textElement, initEarth) {
 			.data(vis.displayText)
 			.join("text")
 			.attr("x", 0)
-			.attr("y", (d, i) => i * 32)
-			.attr("fill", "white")        
+			.attr("y", (d, i) => i * 20)
+			.attr("fill", "white")
+			.style("font-size", "10px")
+			.style("word-wrap", "break-word")
 			.text(d => d);
 
 	}

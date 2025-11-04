@@ -138,15 +138,25 @@ class Filters {
 
 		const value = extent[0] + (extent[1] - extent[0]) * (percent / 100);
 		
+		// Map short names to full filter property names
+		const filterMap = {
+			'distance': 'distance',
+			'radius': 'radius',
+			'temp': 'temperature',
+			'lum': 'luminosity'
+		};
+		
+		const fullFilterName = filterMap[filterName] || filterName;
+		
 		// Update filter object
 		if (type === "min") {
-			vis.filters[`${filterName}Min`] = value;
+			vis.filters[`${fullFilterName}Min`] = value;
 		} else {
-			vis.filters[`${filterName}Max`] = value;
+			vis.filters[`${fullFilterName}Max`] = value;
 		}
 
 		// Update display
-		valueSpan.text(`${formatter(vis.filters[`${filterName}Min`])} - ${formatter(vis.filters[`${filterName}Max`])}`);
+		valueSpan.text(`${formatter(vis.filters[`${fullFilterName}Min`])} - ${formatter(vis.filters[`${fullFilterName}Max`])}`);
 
 		// Apply filters
 		vis.applyFilters();
