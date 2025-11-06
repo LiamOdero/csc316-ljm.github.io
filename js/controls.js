@@ -36,9 +36,19 @@ class Controls {
 			.attr("class", "btn btn-outline-light btn-sm")
 			.style("font-size", "11px")
 			.style("padding", "3px 10px")
-			.text("Reset Brush")
+			.text("View All")
 			.on("click", () => {
 				vis.minimap.resetBrush();
+			});
+
+		// View solar System
+		vis.zoomMinBtn = buttonGroup.append("button")
+			.attr("class", "btn btn-outline-light btn-sm")
+			.style("font-size", "11px")
+			.style("padding", "3px 10px")
+			.text("View Solar System")
+			.on("click", () => {
+				vis.minimap.setSolarView();
 			});
 
 		// Zoom In Button
@@ -51,6 +61,8 @@ class Controls {
 			.on("click", () => {
 				vis.minimap.zoomIn();
 			});
+		
+
 
 		// Zoom Out Button
 		vis.zoomOutBtn = buttonGroup.append("button")
@@ -60,7 +72,17 @@ class Controls {
 			.style("padding", "3px 10px")
 			.text("Zoom Out")
 			.on("click", () => {
-				vis.minimap.zoomOut();
+				vis.minimap.zoomOut(true);
+			});
+
+		// Reset Brush Button
+		vis.zoomMaxBtn = buttonGroup.append("button")
+			.attr("class", "btn btn-outline-light btn-sm")
+			.style("font-size", "11px")
+			.style("padding", "3px 10px")
+			.text("Zoom Out (max)")
+			.on("click", () => {
+				vis.minimap.zoomOutMax();
 			});
 	}
 

@@ -134,6 +134,7 @@ class Minimap {
 	}
 
 	setSolarView()	{
+		// zoom with a little padding so that planets are not at the edge of the view
 		let padding={top: 1e-11, bottom: 1e-11, left: 1e-11, right: 1e-11};
 		let vis = this;
 
@@ -142,6 +143,7 @@ class Minimap {
 
 		vis.currentXDomain = [planetXExtent[0] - padding.left, planetXExtent[1] + padding.right];
 		vis.currentYDomain = [planetYExtent[0] - padding.bottom, planetYExtent[1] + padding.top];
+
 		vis._mainChart.updateDomain(vis.currentXDomain, vis.currentYDomain);
 		vis.updateBrushFromMainChart(vis.currentXDomain, vis.currentYDomain)
 		vis.updateMinimapView(false);
@@ -488,5 +490,44 @@ class Minimap {
 		}
 
 		vis.updateMinimapView(true);
+	}
+
+	approxEqual(a, b, epsilon = 1e-5) {
+		return Math.abs(a - b) < epsilon;
+	}
+
+	// Zoom all the way out with animations until the chart shows everything again
+	zoomOutMax()	{
+		let vis = this;
+		const maxXdomain = d3.extent(this._mainChart.data, d => d.x_pos);
+		const maxYdomain = d3.extent(this._mainChart.data, d => d.y_pos);
+
+		const skipXDomain = [-1.8618173731174315, 1.8618173731640422]
+		const skipYDomain = [ -9.741409886936871, 9.741409887375891 ]
+		let i = 0
+		const interval = setInterval(() => {
+		if (
+			vis.approxEqual(vis.currentXDomain[0], maxXdomain[0]) &&
+			vis.approxEqual(vis.currentXDomain[1], maxXdomain[1]) &&
+			vis.approxEqual(vis.currentYDomain[0], maxYdomain[0]) &&
+			vis.approxEqual(vis.currentYDomain[1], maxYdomain[1])
+		) {
+			clearInterval(interval);
+
+			// Hide viewport rectangle
+			vis.viewportRect.attr("opacity", 0);
+		} else {
+			if (i == 3)	{	
+				vis.currentXDomain = skipXDomain;
+				vis.currentYDomain = skipYDomain;
+				this.updateMinimapView(true)
+			}	else	{
+				vis.zoomOut();
+			}	
+			i += 1;
+
+			
+			vis._mainChart.updateDomain(vis.currentXDomain, vis.currentYDomain);
+		}}, 500);
 	}
 }
