@@ -6,11 +6,14 @@
  */
 
 class Controls {
-	constructor(parentElement, data, minimap) {
+	constructor(parentElement, data) {
 		this.parentElement = parentElement;
 		this.data = data;
-		this.minimap = minimap;
 		this.areachart = null; // Will be set later
+	}
+
+	setMinimap(minimap)	{
+		this.minimap = minimap;
 	}
 
 	initVis() {

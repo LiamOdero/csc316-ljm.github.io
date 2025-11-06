@@ -1,6 +1,6 @@
 
 // Variables for the visualization instances
-let areachart, timeline;
+let areachart, timeline, controls, minimap;
 let data;
 
 const RADIUS_SUN= 696340;
@@ -27,17 +27,19 @@ function loadData() {
 
 		areachart = new StarDisplayChart("stacked-area-chart", data_cleaned, compareChart1, compareChart2);
 		areachart.initVis();
-		
-		minimap = new Minimap("timeline", data.years, areachart)
+
+		// Initialize D3-based controls
+		controls = new Controls("controls-container", data_cleaned);
+		controls.initVis();
+		controls.setAreachart(areachart);
+
+	
+		minimap = new Minimap("timeline", controls, areachart)
 		minimap.initVis();
+		controls.setMinimap(minimap)
 
 		// Set minimap reference in main chart so brush can update it
 		areachart.setMinimap(minimap);
-
-		// Initialize D3-based controls
-		controls = new Controls("controls-container", data_cleaned, minimap);
-		controls.initVis();
-		controls.setAreachart(areachart);
 
 		// Initialize D3-based filters
 		filters = new Filters("filter", data_cleaned, areachart, minimap);

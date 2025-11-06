@@ -9,13 +9,10 @@ EPSILON = 0.75e-1
 class Minimap {
 
 	// constructor method to initialize Timeline object
-	constructor(parentElement, data, mainChart){
+	constructor(parentElement, controls, mainChart){
 		this._parentElement = parentElement;
-		this._data = data;
+		this.controls = controls;
 		this._mainChart = mainChart;
-
-		// No data wrangling, no update sequence
-		this._displayData = data;
 
 		// Track current minimap domain for zoom functionality
 		this.currentXDomain = null;
@@ -538,6 +535,11 @@ class Minimap {
 				vis.approxEqual(vis.currentYDomain[1], maxYdomain[1])
 			) {
 				vis.viewportRect.attr("opacity", 0);
+				vis.controls.resetBrushBtn.property("disabled", false)
+				vis.controls.zoomMinBtn.property("disabled", false)
+				vis.controls.zoomInBtn.property("disabled", false)
+				vis.controls.zoomOutBtn.property("disabled", false)
+				vis.controls.zoomMaxBtn.property("disabled", false)
 				return;
 			}
 
@@ -555,7 +557,11 @@ class Minimap {
 			const delay = (currDiff === 0) ? 0 : 500;
 			setTimeout(zoomStep, delay);
 		}
-
+		vis.controls.resetBrushBtn.property("disabled", true)
+		vis.controls.zoomMinBtn.property("disabled", true)
+		vis.controls.zoomInBtn.property("disabled", true)
+		vis.controls.zoomOutBtn.property("disabled", true)
+		vis.controls.zoomMaxBtn.property("disabled", true)
 		zoomStep();
 
 	}
