@@ -424,8 +424,12 @@ constructor(parentElement, data, comparison1, comparison2) {
 			.attr("r", function(d) {
 				return vis.r(d.rad)
 			})
-			.attr("fill", function(d) {
-				return vis.colorScale(d.temp)	
+			.attr("fill", function(d) { 
+				if (d.name in vis.planetColours)	{
+					return vis.planetColours[d.name];
+				}	else	{
+					return vis.colorScale(d.temp); 
+				}
 			});
 		
 		enter
