@@ -16,8 +16,8 @@ function loadData() {
             
         data_cleaned = prepareData(data)
         
-		console.log(data_cleaned)
-        console.log('data loaded ')
+		//console.log(data_cleaned)
+        //console.log('data loaded ')
 
 		compareChart1 = new ComparisonChart("star-comparison-1" , "highlight-text", true)
 		compareChart1.initVis();
@@ -68,10 +68,6 @@ function prepareData(data){
 	}
 
 	return data_cleansed
-}
-
-function brushed() {
-
 }
 
 
