@@ -10,6 +10,7 @@
  */
 
 EPSILON = 0.75e-1
+TRANSITION_EPSILON = 2
 EARTH = {name: "Earth", 
 						dist: 0, 
 						lum: NaN, 
@@ -85,15 +86,6 @@ constructor(parentElement, data, comparison1, comparison2) {
 		vis.yAxis = d3.axisLeft()
 			.scale(vis.y)
 			.ticks(0);
-
-		// todo: possibly remove as well
-		vis.svg.append("g")
-			.attr("class", "x-axis axis")
-			.attr("transform", "translate(0," + vis.y(0) + ")");
-
-		vis.svg.append("g")
-			.attr("class", "y-axis axis")
-			.attr("transform", "translate("+ vis.x(0)  + ", 0)");
 
 		// Add brush to main chart
 		vis.brush = d3.brush()
@@ -266,6 +258,8 @@ constructor(parentElement, data, comparison1, comparison2) {
 		inRangeData = vis.data.filter((e) =>	{
 			return xDomain[0] <= e.x_pos && e.x_pos <= xDomain[1] && yDomain[0] <= e.y_pos && e.y_pos <= yDomain[1]  
 		})
+
+		let prevMax = vis.r.domain()[1];
 		
 		vis.r.domain(d3.extent(inRangeData, d => d.rad))
 
@@ -273,10 +267,13 @@ constructor(parentElement, data, comparison1, comparison2) {
 			return vis.r(e.rad) > EPSILON;
 		})
 
+		let newMax = vis.r.domain()[1]
+		let diff = prevMax / ((newMax == 0) ? 1 : newMax)
+
 		vis.displayData = inRangeData
-		
+		console.log(diff)
 		// axis update (without minimap update, and no transition for smooth dragging)
-		vis.updateVis(false);
+		vis.updateVis(diff > TRANSITION_EPSILON || 1 / diff > TRANSITION_EPSILON);
 	}
 
 	/**
@@ -402,7 +399,7 @@ constructor(parentElement, data, comparison1, comparison2) {
 
 		// Apply transition only if requested (not during viewport dragging)
 		if (useTransition) {
-			merged = merged.transition().duration(750);
+			merged = merged.transition().duration(500);
 		}
 
 		// update positions and size
