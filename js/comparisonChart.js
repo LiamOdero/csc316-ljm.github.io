@@ -37,6 +37,10 @@ constructor(parentElement, textElement, initEarth) {
 	this.displayText = ["Click on a star in the chart", "to the left to view it here:"]
 	this.colours = ["#ff3300","#fff9fb", "#9dbdff"]
 
+	this.planetColours = {"Mercury": "#E5E5E5", "Venus": "#E5E5E5", "Earth": "#2f6a69", "Mars": "#E27B58",
+						  "Jupiter": "#b07f35", "Saturn": "#b08f36", "Uranus": "#5580aa", "Neptune": "#7CB7BB"
+	}
+
 	// Scale defined via http://www.vendian.org/mncharity/dir3/blackbody/UnstableURLs/bbr_color.html 
 	this.colorScale = d3.scaleDiverging()
         .domain([1000, 6500, 35000])
@@ -156,10 +160,10 @@ constructor(parentElement, textElement, initEarth) {
 		circles.enter().append("circle")
 		.merge(circles)
 			.attr("fill", function(d) {
-				if (d.name === "Earth")	{
-					return "#0000A0"
+				if (d.name in vis.planetColours)	{
+					return vis.planetColours[d.name];
 				}	else	{
-					return vis.colorScale(d.temp)	
+					return vis.colorScale(d.temp); 
 				}
 			})
 			.on("mouseenter", (event, d) => {

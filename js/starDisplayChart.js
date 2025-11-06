@@ -39,6 +39,11 @@ constructor(parentElement, data, comparison1, comparison2) {
 		.range(this.colours)
 		.clamp(true);
 
+	this.planetData = this.data.filter((e) => isNaN(e.name));
+	this.planetColours = {"Mercury": "#E5E5E5", "Venus": "#E5E5E5", "Earth": "#2f6a69", "Mars": "#E27B58",
+						  "Jupiter": "#b07f35", "Saturn": "#b08f36", "Uranus": "#5580aa", "Neptune": "#7CB7BB"
+	}
+
 }
 
 	/*
@@ -351,7 +356,13 @@ constructor(parentElement, data, comparison1, comparison2) {
 				}
 				return vis.r(d.rad); 
 			})
-			.attr("fill", function(d) { return vis.colorScale(d.temp); })
+			.attr("fill", function(d) { 
+				if (d.name in vis.planetColours)	{
+					return vis.planetColours[d.name];
+				}	else	{
+					return vis.colorScale(d.temp); 
+				}
+			})
 			.attr("opacity", function(d) {
 				// Apply filter state for newly entering stars
 				if (vis.currentFilterCriteria) {
