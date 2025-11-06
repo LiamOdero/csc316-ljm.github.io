@@ -143,7 +143,7 @@ constructor(parentElement, data, comparison1, comparison2) {
 		const formatSI = d3.format(".2e");
 
 		const name = d.name || "Unknown star";
-		const distance = Number.isFinite(d.dist) ? `${formatSI(Math.abs(d.dist).toFixed(2))} ly` : "Unknown";
+		const distance = Number.isFinite(d.dist) ? `${formatSI(Math.abs(d.dist))} ly` : "Unknown";
 		const radius = Number.isFinite(d.rad) ? `${formatSI(d.rad)} km` : "Unknown";
 		const temperature = Number.isFinite(d.temp) ? `${formatSI(d.temp)} K` : "Unknown";
 		const luminosity = Number.isFinite(d.lum) ? `${formatSI(d.lum)} W` : "Unknown";

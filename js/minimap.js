@@ -26,7 +26,10 @@ class Minimap {
 		this.currentBrushDomain = null; // domain of brush on minimap
 		this.currentFilterCriteria = null; // store current filter state
 
-		this.planetData = this._mainChart.data.filter((e) => isNaN(e.name));
+		this.planetData = this._mainChart.data.filter((e) => isNaN(e.name)).slice(0, 4);
+		this.planetColours = {"Mercury": "#E5E5E5", "Venus": "#E5E5E5", "Earth": "#2f6a69", "Mars": "#E27B58",
+						  "Jupiter": "#b07f35", "Saturn": "#b08f36", "Uranus": "#5580aa", "Neptune": "#7CB7BB"
+		}
 	}
 
 	// create initVis method for Timeline class
@@ -189,35 +192,40 @@ class Minimap {
 		let vis = this;
 		const chartData = vis._mainChart.data;
 
-		let displayData;
 		if (vis.isPanning) {
-			displayData = chartData;
+			vis._displayData = chartData;
 		} else {
-			displayData = chartData.filter(d => 
+			vis._displayData = chartData.filter(d => 
 				d.x_pos >= vis.currentXDomain[0] && d.x_pos <= vis.currentXDomain[1] &&
 				d.y_pos >= vis.currentYDomain[0] && d.y_pos <= vis.currentYDomain[1]
 			);
 		}
 
 		// radius on minimap scales relative to how zoomed in the minimap is.
-		if (displayData.length > 0) {
-			const radExtent = d3.extent(displayData, d => d.rad);
+		if (vis._displayData.length > 0) {
+			const radExtent = d3.extent(vis._displayData, d => d.rad);
 			vis.r.domain(radExtent);
 		}
 
-		displayData = displayData.filter((e) =>	{
+		vis._displayData = vis._displayData.filter((e) =>	{
 			return vis.r(e.rad) > EPSILON;
 		})
 
 		const circles = vis.starsGroup.selectAll("circle")
-			.data(displayData, d => d.name); 
+			.data(vis._displayData, d => d.name); 
 
 		circles.enter()
 			.append("circle")
 			.attr("cx", d => vis.x(d.x_pos))
 			.attr("cy", d => vis.y(d.y_pos))
 			.attr("r", d => vis.r(d.rad))
-			.attr("fill", d => vis._mainChart.colorScale(d.temp))
+			.attr("fill", function(d) { 
+				if (d.name in vis.planetColours)	{
+						return vis.planetColours[d.name];
+				}	else	{
+					return vis._mainChart.colorScale(d.temp); 
+				}
+			})
 			.attr("opacity", 1)
 			.merge(circles)
 			.each(function(d) {
@@ -226,7 +234,13 @@ class Minimap {
 					.attr("cx", d => vis.x(d.x_pos))
 					.attr("cy", d => vis.y(d.y_pos))
 					.attr("r", d => vis.r(d.rad))
-					.attr("fill", d => vis._mainChart.colorScale(d.temp));
+					.attr("fill", function(d) { 
+						if (d.name in vis.planetColours)	{
+							return vis.planetColours[d.name];
+						}	else	{
+							return vis._mainChart.colorScale(d.temp); 
+						}
+					})
 				
 				// Apply current filter criteria to ensure consistency
 				if (vis.currentFilterCriteria) {
@@ -446,7 +460,7 @@ class Minimap {
 	/**
 	 * Zoom out on the minimap (restore previous zoom level or expand by 2x)
 	 */
-	zoomOut() {
+	zoomOut(updateview) {
 		let vis = this;
 
 		if (vis.zoomStack.length > 0) {
@@ -489,45 +503,60 @@ class Minimap {
 			vis.currentYDomain[1] = Math.min(vis.currentYDomain[1], maxYDomain[1]);
 		}
 
-		vis.updateMinimapView(true);
+		if (updateview)	{
+			vis.updateMinimapView(true);
+		}	else	{
+			vis._displayData = vis._mainChart.data.filter(d => 
+				d.x_pos >= vis.currentXDomain[0] && d.x_pos <= vis.currentXDomain[1] &&
+				d.y_pos >= vis.currentYDomain[0] && d.y_pos <= vis.currentYDomain[1]
+			);
+
+			vis._displayData = vis._displayData.filter((e) =>	{
+				return vis.r(e.rad) > EPSILON;
+			})
+		}
+
 	}
 
 	approxEqual(a, b, epsilon = 1e-5) {
 		return Math.abs(a - b) < epsilon;
 	}
 
-	// Zoom all the way out with animations until the chart shows everything again
 	zoomOutMax()	{
 		let vis = this;
 		const maxXdomain = d3.extent(this._mainChart.data, d => d.x_pos);
 		const maxYdomain = d3.extent(this._mainChart.data, d => d.y_pos);
 
-		const skipXDomain = [-1.8618173731174315, 1.8618173731640422]
-		const skipYDomain = [ -9.741409886936871, 9.741409887375891 ]
-		let i = 0
-		const interval = setInterval(() => {
-		if (
-			vis.approxEqual(vis.currentXDomain[0], maxXdomain[0]) &&
-			vis.approxEqual(vis.currentXDomain[1], maxXdomain[1]) &&
-			vis.approxEqual(vis.currentYDomain[0], maxYdomain[0]) &&
-			vis.approxEqual(vis.currentYDomain[1], maxYdomain[1])
-		) {
-			clearInterval(interval);
+		let currSize = vis._displayData.length;
+		let currDiff = 100;
 
-			// Hide viewport rectangle
-			vis.viewportRect.attr("opacity", 0);
-		} else {
-			if (i == 3)	{	
-				vis.currentXDomain = skipXDomain;
-				vis.currentYDomain = skipYDomain;
-				this.updateMinimapView(true)
-			}	else	{
-				vis.zoomOut();
-			}	
-			i += 1;
+		function zoomStep() {
+			if (
+				vis.approxEqual(vis.currentXDomain[0], maxXdomain[0]) &&
+				vis.approxEqual(vis.currentXDomain[1], maxXdomain[1]) &&
+				vis.approxEqual(vis.currentYDomain[0], maxYdomain[0]) &&
+				vis.approxEqual(vis.currentYDomain[1], maxYdomain[1])
+			) {
+				vis.viewportRect.attr("opacity", 0);
+				return;
+			}
 
-			
-			vis._mainChart.updateDomain(vis.currentXDomain, vis.currentYDomain);
-		}}, 500);
+			// Perform zoom out
+			vis.zoomOut(!(currDiff === 0));
+
+			currDiff = vis._displayData.length - currSize;
+			currSize = vis._displayData.length;
+
+			if (!(currDiff === 0)) {
+				vis._mainChart.updateDomain(vis.currentXDomain, vis.currentYDomain);
+			}
+
+			// Choose delay dynamically:
+			const delay = (currDiff === 0) ? 0 : 500;
+			setTimeout(zoomStep, delay);
+		}
+
+		zoomStep();
+
 	}
 }
