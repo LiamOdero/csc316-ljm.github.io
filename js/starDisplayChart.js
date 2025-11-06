@@ -236,7 +236,7 @@ constructor(parentElement, data, comparison1, comparison2) {
 			return xDomain[0] <= e.x_pos && e.x_pos <= xDomain[1] && yDomain[0] <= e.y_pos && e.y_pos <= yDomain[1]  
 		})
 		
-		vis.r.domain([inRangeData[0].rad, inRangeData[inRangeData.length - 1].rad])
+		vis.r.domain(d3.extent(inRangeData, d => d.rad))
 
 		inRangeData = inRangeData.filter((e) =>	{
 			return vis.r(e.rad) > EPSILON;
@@ -258,7 +258,6 @@ constructor(parentElement, data, comparison1, comparison2) {
 	 */
 	updateDomainWithoutMinimapUpdate(xDomain, yDomain) {
 		let vis = this;
-
 		// scales are updated to the new domain
 		vis.x.domain(xDomain);
 		vis.y.domain(yDomain);
@@ -268,7 +267,7 @@ constructor(parentElement, data, comparison1, comparison2) {
 			return xDomain[0] <= e.x_pos && e.x_pos <= xDomain[1] && yDomain[0] <= e.y_pos && e.y_pos <= yDomain[1]  
 		})
 		
-		vis.r.domain([inRangeData[0].rad, inRangeData[inRangeData.length - 1].rad])
+		vis.r.domain(d3.extent(inRangeData, d => d.rad))
 
 		inRangeData = inRangeData.filter((e) =>	{
 			return vis.r(e.rad) > EPSILON;

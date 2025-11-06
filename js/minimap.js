@@ -5,6 +5,7 @@ Minimap - ES6 Class
  * @param  data             -- the data the timeline should use
  */
 
+EPSILON = 0.75e-1
 class Minimap {
 
 	// constructor method to initialize Timeline object
@@ -24,6 +25,8 @@ class Minimap {
 		this.isDraggingViewport = false; // flag to track viewport drag state
 		this.currentBrushDomain = null; // domain of brush on minimap
 		this.currentFilterCriteria = null; // store current filter state
+
+		this.planetData = this._mainChart.data.filter((e) => isNaN(e.name));
 	}
 
 	// create initVis method for Timeline class
@@ -125,7 +128,24 @@ class Minimap {
 				d3.select(this).style("cursor", "move");
 			});
 
+
 		vis.viewportRect.call(viewportDrag);
+		vis.setSolarView();
+	}
+
+	setSolarView()	{
+		let padding={top: 1e-11, bottom: 1e-11, left: 1e-11, right: 1e-11};
+		let vis = this;
+
+		let planetXExtent = d3.extent(vis.planetData, d => d.x_pos);
+		let planetYExtent = d3.extent(vis.planetData, d => d.y_pos);
+
+		vis.currentXDomain = [planetXExtent[0] - padding.left, planetXExtent[1] + padding.right];
+		vis.currentYDomain = [planetYExtent[0] - padding.bottom, planetYExtent[1] + padding.top];
+		vis._mainChart.updateDomain(vis.currentXDomain, vis.currentYDomain);
+		vis.updateBrushFromMainChart(vis.currentXDomain, vis.currentYDomain)
+		vis.updateMinimapView(false);
+		
 	}
 
 	/**
@@ -182,6 +202,10 @@ class Minimap {
 			const radExtent = d3.extent(displayData, d => d.rad);
 			vis.r.domain(radExtent);
 		}
+
+		displayData = displayData.filter((e) =>	{
+			return vis.r(e.rad) > EPSILON;
+		})
 
 		const circles = vis.starsGroup.selectAll("circle")
 			.data(displayData, d => d.name); 
