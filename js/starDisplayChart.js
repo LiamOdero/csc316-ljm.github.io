@@ -303,7 +303,6 @@ constructor(parentElement, data, comparison1, comparison2) {
 		let diff = prevMax / ((newMax == 0) ? 1 : newMax)
 
 		vis.displayData = inRangeData
-		console.log(diff)
 		// axis update (without minimap update, and no transition for smooth dragging)
 		vis.updateVis(diff > TRANSITION_EPSILON || 1 / diff > TRANSITION_EPSILON);
 	}

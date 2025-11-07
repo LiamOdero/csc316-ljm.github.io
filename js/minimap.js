@@ -135,19 +135,12 @@ class Minimap {
 
 	setSolarView()	{
 		// zoom with a little padding so that planets are not at the edge of the view
-		let padding={top: 1e-11, bottom: 1e-11, left: 1e-11, right: 1e-11};
 		let vis = this;
+		vis.currentXDomain = d3.extent(vis.planetData, d => d.x_pos)
+		vis.currentYDomain = d3.extent(vis.planetData, d => d.y_pos);
 
-		let planetXExtent = d3.extent(vis.planetData, d => d.x_pos);
-		let planetYExtent = d3.extent(vis.planetData, d => d.y_pos);
-
-		vis.currentXDomain = [planetXExtent[0] - padding.left, planetXExtent[1] + padding.right];
-		vis.currentYDomain = [planetYExtent[0] - padding.bottom, planetYExtent[1] + padding.top];
-
-		vis._mainChart.updateDomain(vis.currentXDomain, vis.currentYDomain);
-		vis.updateBrushFromMainChart(vis.currentXDomain, vis.currentYDomain)
-		vis.updateMinimapView(false);
-		
+		vis._mainChart.updateDomainWithoutMinimapUpdate(vis.currentXDomain, vis.currentYDomain);
+		vis.updateBrushFromMainChart(vis.currentXDomain, vis.currentYDomain);
 	}
 
 	/**
