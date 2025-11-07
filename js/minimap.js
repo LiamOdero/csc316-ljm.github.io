@@ -20,6 +20,7 @@ class Minimap {
 		this.zoomStack = []; // stack to store zoom history
 		this.isPanning = false; // flag to track panning state
 		this.isDraggingViewport = false; // flag to track viewport drag state
+		this.isZoomingOutMax = false; // flag to track zoom out max in progress
 		this.currentBrushDomain = null; // domain of brush on minimap
 		this.currentFilterCriteria = null; // store current filter state
 
@@ -95,11 +96,19 @@ class Minimap {
 		// Make viewport rectangle draggable
 		const viewportDrag = d3.drag()
 			.on("start", function(event) {
+				if (!vis.currentBrushDomain || vis.viewportRect.attr("opacity") == 0) {
+					event.sourceEvent.stopPropagation();
+					return;
+				}
 				vis.isDraggingViewport = true;
 				d3.select(this).style("cursor", "grabbing");
 				event.sourceEvent.stopPropagation(); // Prevent pan-area from receiving event
 			})
 			.on("drag", function(event) {
+				// cannot pan if there is no brush domain
+				if (!vis.currentBrushDomain || vis.viewportRect.attr("opacity") == 0) {
+					return;
+				}
 				// Get current viewport position and size
 				const rect = d3.select(this);
 				const width = parseFloat(rect.attr("width"));
@@ -150,7 +159,9 @@ class Minimap {
 		let vis = this;
 		
 		// Hide viewport rectangle
-		vis.viewportRect.attr("opacity", 0);
+		vis.viewportRect
+			.attr("opacity", 0)
+			.style("cursor", "default");
 		
 		// Reset main chart with animation
 		vis._mainChart.resetDomain();
@@ -160,6 +171,7 @@ class Minimap {
 		vis.currentXDomain = d3.extent(chartData, d => d.x_pos);
 		vis.currentYDomain = d3.extent(chartData, d => d.y_pos);
 		vis.zoomStack = [];
+		vis.currentBrushDomain = null; // Clear brush domain when resetting
 		vis.updateMinimapView();
 	}
 
@@ -292,7 +304,8 @@ class Minimap {
 			vis.viewportRect
 				.transition()
 				.duration(800)
-				.attr("opacity", 0);
+				.attr("opacity", 0)
+				.style("cursor", "default"); // Change cursor when not draggable
 			return;
 		}
 
@@ -362,13 +375,16 @@ class Minimap {
 				.attr("y", y0)
 				.attr("width", x1 - x0)
 				.attr("height", y1 - y0)
-				.attr("opacity", 1);
+				.attr("opacity", 1)
+				.style("cursor", "move"); // Enable cursor for dragging
 		} else {
 			// Hide viewport rectangle if main chart view is outside minimap
 			const rect = useTransition ? 
 				vis.viewportRect.transition().duration(800) : 
 				vis.viewportRect;
-			rect.attr("opacity", 0);
+			rect
+				.attr("opacity", 0)
+				.style("cursor", "default"); // Disable cursor when not visible
 		}
 	}
 
@@ -533,6 +549,11 @@ class Minimap {
 				vis.controls.zoomInBtn.property("disabled", false)
 				vis.controls.zoomOutBtn.property("disabled", false)
 				vis.controls.zoomMaxBtn.property("disabled", false)
+				// Re-enable brush and clear flag when zoom out max is complete
+				vis.isZoomingOutMax = false;
+				if (vis._mainChart && vis._mainChart.brushGroup) {
+					vis._mainChart.brushGroup.style("pointer-events", "all");
+				}
 				return;
 			}
 
@@ -555,6 +576,12 @@ class Minimap {
 		vis.controls.zoomInBtn.property("disabled", true)
 		vis.controls.zoomOutBtn.property("disabled", true)
 		vis.controls.zoomMaxBtn.property("disabled", true)
+
+		// Set flag and disable brush when zoom out max starts
+		vis.isZoomingOutMax = true;
+		if (vis._mainChart && vis._mainChart.brushGroup) {
+			vis._mainChart.brushGroup.style("pointer-events", "none");
+		}
 		zoomStep();
 
 	}

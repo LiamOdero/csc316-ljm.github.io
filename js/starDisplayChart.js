@@ -120,7 +120,26 @@ constructor(parentElement, data, comparison1, comparison2) {
 		// Add brush to main chart
 		vis.brush = d3.brush()
 			.extent([[0, 0], [vis.width, vis.height]])
+			.on("start", function(event) {
+				// prevents brush from starting if the zoomout process is occurring
+				if (vis.minimap && vis.minimap.isZoomingOutMax) {
+					event.sourceEvent.stopImmediatePropagation();
+					return;
+				}
+			})
+			.on("brush", function(event) {
+				// cannot draw brush if zoomout is happening
+				if (vis.minimap && vis.minimap.isZoomingOutMax) {
+					vis.brushGroup.call(vis.brush.move, null);
+					return;
+				}
+			})
 			.on("end", function(event) {
+
+				if (vis.minimap && vis.minimap.isZoomingOutMax) {
+					return;
+				}
+				
 				if (event.selection) {
 					const [[x0, y0], [x1, y1]] = event.selection;
 					
