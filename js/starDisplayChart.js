@@ -28,7 +28,7 @@ constructor(parentElement, data, comparison1, comparison2) {
     this.displayData = data;
 	this.comparison1 = comparison1
 	this.comparison2 = comparison2
-	this.currComparison = this.comparison2;
+	this.currComparison = null;
 	this.colours = ["#ff3300","#fff9fb", "#9dbdff"]
 	this.minimap = null; // Reference to minimap for brush updates
 	this.currentFilterCriteria = null; // Store current filter state
@@ -44,7 +44,32 @@ constructor(parentElement, data, comparison1, comparison2) {
 						  "Jupiter": "#b07f35", "Saturn": "#b08f36", "Uranus": "#5580aa", "Neptune": "#7CB7BB"
 	}
 
+	if (this.comparison1 && this.comparison1.setActivationHandler) {
+		this.comparison1.setActivationHandler(() => {
+			this.setActiveComparison(this.comparison1);
+		});
+	}
+
+	if (this.comparison2 && this.comparison2.setActivationHandler) {
+		this.comparison2.setActivationHandler(() => {
+			this.setActiveComparison(this.comparison2);
+		});
+	}
+
+	this.setActiveComparison(this.comparison2);
 }
+
+	setActiveComparison(targetComparison) {
+		this.currComparison = targetComparison || null;
+
+		if (this.comparison1 && this.comparison1.setSelected) {
+			this.comparison1.setSelected(this.currComparison === this.comparison1);
+		}
+
+		if (this.comparison2 && this.comparison2.setSelected) {
+			this.comparison2.setSelected(this.currComparison === this.comparison2);
+		}
+	}
 
 	/*
 	 * Method that initializes the visualization (static content, e.g. SVG area or axes)
@@ -167,8 +192,9 @@ constructor(parentElement, data, comparison1, comparison2) {
 	buttonEvent(d, button, comparison)	{
 		let vis = this;
 
+		vis.setActiveComparison(comparison);
+
 		if (d.target.innerHTML === "Clear")	{
-			vis.currComparison = comparison
 			vis.clearStar(comparison)
 			button.text("Set to Earth")
 
@@ -194,13 +220,14 @@ constructor(parentElement, data, comparison1, comparison2) {
 	 */
 	clearStar(comparison)	{
 		let vis = this;
-		if (comparison == vis.comparison1)	{
-			vis.comparison2.clearComparison();
-		}	else	{
-			vis.comparison1.clearComparison();
-		}
 		comparison.clearVis();
-		vis.currComparison = comparison;
+
+		const otherComparison = comparison === vis.comparison1 ? vis.comparison2 : vis.comparison1;
+		if (otherComparison) {
+			otherComparison.compareStar(null);
+		}
+
+		vis.setActiveComparison(comparison);
 	}
 
 	/**
@@ -215,7 +242,7 @@ constructor(parentElement, data, comparison1, comparison2) {
 			vis.comparison1.compareStar(star)
 		}
 		comparison.highlightStar(star);
-		vis.currComparison = null;
+		vis.setActiveComparison(comparison);
 	}
 
 	/**

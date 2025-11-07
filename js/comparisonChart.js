@@ -20,21 +20,18 @@ constructor(parentElement, textElement, initEarth) {
     this.parentElement = parentElement;
 	this.textElement = textElement
 	this.compareData = [];
-	if (!initEarth)	{
-		this.compareData.push({name: "Earth", 
-						dist: 0, 
-						lum: NaN, 
-						rad:  6378,
-						temp: 288,
-						x_pos: 0,
-						y_pos: -50})
-	}
 
-	this.initEarth = initEarth;
+    this.initEarth = initEarth;
     this.displayData = []
+	this.activationCallback = null;
+	this.isActive = false;
+	this.defaultReferenceStar = initEarth ? null : EARTH;
+	this.referenceStar = this.defaultReferenceStar;
+	this.displayText = [];
+	this.updatePlaceholderText();
+	this.refreshCompareData();
 
-	// hacky solution to lack of newlines
-	this.displayText = ["Click on a star in the chart", "to the left to view it here:"]
+	// hacky solution to lack of newlines handled via updatePlaceholderText
 	this.colours = ["#ff3300","#fff9fb", "#9dbdff"]
 
 	this.planetColours = {"Mercury": "#E5E5E5", "Venus": "#E5E5E5", "Earth": "#2f6a69", "Mars": "#E27B58",
@@ -54,34 +51,71 @@ constructor(parentElement, textElement, initEarth) {
 	initVis(){
 		let vis = this;
 
-		vis.margin = {top: 50, right: 40, bottom: 20, left: 40};
+		vis.margin = {top: 0, right: 0, bottom: 10, left: 0};
 
 		vis.width = document.getElementById(vis.parentElement).getBoundingClientRect().width - vis.margin.left - vis.margin.right;
 		vis.height = document.getElementById(vis.parentElement).getBoundingClientRect().height - vis.margin.top - vis.margin.bottom;
 
+		vis.container = d3.select("#" + vis.parentElement);
+		vis.container.on("click", (event) => {
+			const clickedButton = event.target.closest ? event.target.closest("button") : (event.target.tagName === "BUTTON");
+			if (clickedButton) {
+				return;
+			}
+			if (vis.activationCallback) {
+				vis.activationCallback(vis);
+			}
+		});
+
 		const totalWidth = vis.width + vis.margin.left + vis.margin.right;
 		const totalHeight = vis.height;
-		const toolHeight = totalHeight / 4;
+		const computedToolHeight = totalHeight / 4;
+		vis.infoBoxSize = {
+			width: 360,
+			height: 160,
+			paddingX: 18,
+			paddingY: 25,
+			marginTop: 10,
+			lineHeight: 28,
+			fontSize: 15
+		};
+		vis.toolHeight = Math.max(computedToolHeight, vis.infoBoxSize.height + vis.infoBoxSize.marginTop);
 
 		vis.toolarea = d3.select("#" + vis.parentElement)
 			.append("svg")
 			.attr("width", totalWidth)
-			.attr("height", toolHeight + vis.margin.top + vis.margin.bottom)
+			.attr("height", vis.toolHeight + vis.margin.top + vis.margin.bottom)
 			.append("g")
 			.attr("transform", "translate(" + 5 + "," + vis.margin.top + ")");
 
-		const drawHeight = (totalHeight * 2) / 4;
+		vis.toolInnerWidth = totalWidth - 10;
+
+		vis.infoGroup = vis.toolarea.append("g");
+		vis.infoBackground = vis.infoGroup.append("rect")
+			.attr("rx", 10)
+			.attr("ry", 10)
+			.attr("fill", "rgba(255, 255, 255, 0.05)")
+			.attr("stroke", "rgba(255, 255, 255, 0.25)")
+			.attr("stroke-width", 1)
+			.attr("y", vis.infoBoxSize.height);
+		vis.infoTextGroup = vis.infoGroup.append("g");
+		vis.infoContent = vis.infoGroup.append("foreignObject");
+		vis.infoContentDiv = vis.infoContent.append("xhtml:div")
+			.attr("class", "comparison-info-text");
+		const drawHeight = 160;
+		const bottomPadding = 20;
+		const topPadding = 10;
 
 		vis.svg = d3.select("#" + vis.parentElement)
 			.append("svg")
 			.attr("width", totalWidth)
-			.attr("height", drawHeight + vis.margin.top + vis.margin.bottom)
+			.attr("height", drawHeight + bottomPadding + topPadding)
 			.append("g")
-			.attr("transform", "translate(" + vis.margin.left + "," + 0 + ")");
+			.attr("transform", "translate(" + vis.margin.left + "," + topPadding + ")");
 
 
 		vis.text = d3.select('#' + vis.textElement)
-		vis.text.text("Cick any star:")
+		vis.text.text("Click any star:")
 
 		// Scales and axes
 
@@ -93,9 +127,10 @@ constructor(parentElement, textElement, initEarth) {
 			.range([drawHeight, 0])
 			.domain([-50, -50]);
 
+		const initialMaxRadius = this.compareData.length ? d3.max(this.compareData, d => d.rad) : 1;
 		vis.r = d3.scaleLinear()
-			.range([0, drawHeight / 4])
-			.domain(d3.extent(vis.compareData, d => d.rad));
+			.range([0, drawHeight / 2])
+			.domain([0, initialMaxRadius || 1]);
 
 		vis.svg.append("g")
 			.attr("class", "x-axis axis")
@@ -106,11 +141,49 @@ constructor(parentElement, textElement, initEarth) {
 		}
 		vis.updateVis();
 	}
+
+	setActivationHandler(callback) {
+		this.activationCallback = callback;
+	}
+
+	setSelected(isSelected) {
+		this.isActive = isSelected;
+		d3.select("#" + this.parentElement)
+			.classed("comparison-card--active", !!isSelected);
+
+		if (!this.displayData.length) {
+			this.updatePlaceholderText();
+			this.updateVis();
+		}
+	}
+
+	updatePlaceholderText() {
+		if (this.displayData && this.displayData.length) {
+			return;
+		}
+
+		const lines = this.isActive ? ["Click on a star in the chart on the left to view it here"] : 
+		["Select this section then click on a star in the chart on the left to view it here"];
+		this.displayText = lines;
+	}
+
+	refreshCompareData() {
+		this.compareData = [];
+
+		if (this.displayData && this.displayData.length) {
+			this.compareData.push(this.displayData[0]);
+		}
+
+		if (this.referenceStar && (!this.displayData.length || this.referenceStar !== this.displayData[0])) {
+			this.compareData.push(this.referenceStar);
+		}
+
+	}
 	
 	highlightStar(star)	{
 		
 		this.displayData = [star];
-		this.compareData.push(star)
+		this.refreshCompareData();
 
 		const formatSI = d3.format(".2e");
 
@@ -125,25 +198,21 @@ constructor(parentElement, textElement, initEarth) {
 	}
 
 	compareStar(star)	{
-		this.compareData.push(star);
+		this.referenceStar = star || null;
+		this.refreshCompareData();
 		this.updateVis();
 	}
 
 	clearComparison()	{
-		// since compare data should always be length 2, the index of the comparison is whatever index the display star
-		// doesnt occupy
-		let displayIndex = 1 - this.compareData.indexOf(this.displayData[0]);
-		this.compareData.splice(displayIndex, 1);
+		this.referenceStar = null;
+		this.refreshCompareData();
 		this.updateVis();
 	}
 
 	clearVis()	{
-		// remove the displayed star from data to compare, but keep the comparison
-		let displayIndex = this.compareData.indexOf(this.displayData[0]);
-		this.compareData.splice(displayIndex, 1);
-
 		this.displayData = [];
-		this.displayText = ["Click on a star in the chart", "to the left to view it here:"];
+		this.updatePlaceholderText();
+		this.refreshCompareData();
 
 		this.updateVis();
 	}
@@ -154,7 +223,8 @@ constructor(parentElement, textElement, initEarth) {
  	*/
 	updateVis(){
 		let vis = this;
-		this.r.domain([0, d3.max(vis.compareData, d => d.rad)]);
+		const maxRadius = vis.compareData.length ? d3.max(vis.compareData, d => d.rad) : 1;
+		this.r.domain([0, maxRadius || 1]);
 		let circles = vis.svg.selectAll("circle")	
 			.data(vis.displayData);      
 		circles.enter().append("circle")
@@ -192,15 +262,66 @@ constructor(parentElement, textElement, initEarth) {
 			});
 		circles.exit().remove()
 
-		vis.toolarea.selectAll("text")
-			.data(vis.displayText)
-			.join("text")
-			.attr("x", 0)
-			.attr("y", (d, i) => i * 20)
-			.attr("fill", "white")
-			.style("font-size", "10px")
-			.style("word-wrap", "break-word")
-			.text(d => d);
+		const infoBoxWidth = Math.min(vis.infoBoxSize.width, vis.toolInnerWidth);
+		const infoBoxX = (vis.toolInnerWidth - infoBoxWidth) / 2;
+		const infoBoxY = vis.infoBoxSize.marginTop;
+		const infoBoxHeight = vis.infoBoxSize.height;
+		const lineHeight = vis.infoBoxSize.lineHeight;
+		const paddingX = vis.infoBoxSize.paddingX;
+		const paddingY = vis.infoBoxSize.paddingY;
+		const fontSize = vis.infoBoxSize.fontSize;
+		const infoLines = vis.displayText;
+
+		vis.infoBackground
+			.attr("x", infoBoxX)
+			.attr("y", infoBoxY)
+			.attr("width", infoBoxWidth)
+			.attr("height", infoBoxHeight);
+
+		const isPlaceholder = !vis.displayData.length;
+
+		if (isPlaceholder) {
+			vis.infoContent
+				.style("display", "block")
+				.attr("x", infoBoxX)
+				.attr("y", infoBoxY)
+				.attr("width", infoBoxWidth)
+				.attr("height", infoBoxHeight);
+
+			const paragraphs = vis.infoContentDiv
+				.style("padding", `${paddingY}px ${paddingX}px`)
+				.style("height", "100%")
+				.style("box-sizing", "border-box")
+				.selectAll("p")
+				.data(infoLines, (d, i) => `${d}-${i}`);
+
+			paragraphs.enter()
+				.append("p")
+				.merge(paragraphs)
+				.style("margin", i => i === infoLines.length - 1 ? "0" : "0 0 8px 0")
+				.style("font-size", `${fontSize}px`)
+				.text(d => d);
+
+			paragraphs.exit().remove();
+
+			vis.infoTextGroup.selectAll("text").remove();
+			vis.infoTextGroup.attr("display", "none");
+		} else {
+			vis.infoContent.style("display", "none");
+
+			vis.infoTextGroup
+				.attr("display", null)
+				.attr("transform", `translate(${infoBoxX}, ${infoBoxY})`);
+
+			vis.infoTextGroup.selectAll("text")
+				.data(infoLines)
+				.join("text")
+				.attr("x", paddingX)
+				.attr("y", (d, i) => paddingY + (i * lineHeight))
+				.attr("fill", "#ffffff")
+				.style("font-size", `${fontSize}px`)
+				.text(d => d);
+		}
 
 	}
 }

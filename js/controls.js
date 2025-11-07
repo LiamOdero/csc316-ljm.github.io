@@ -35,10 +35,12 @@ class Controls {
 			.style("z-index", "10");
 
 		// Reset Brush Button
+		const buttonPadding = "6px 16px";
+
 		vis.resetBrushBtn = buttonGroup.append("button")
 			.attr("class", "btn btn-outline-light btn-sm")
 			.style("font-size", "11px")
-			.style("padding", "3px 10px")
+			.style("padding", buttonPadding)
 			.text("View All")
 			.on("click", () => {
 				vis.minimap.resetBrush();
@@ -48,7 +50,7 @@ class Controls {
 		vis.zoomMinBtn = buttonGroup.append("button")
 			.attr("class", "btn btn-outline-light btn-sm")
 			.style("font-size", "11px")
-			.style("padding", "3px 10px")
+			.style("padding", buttonPadding)
 			.text("View Solar System")
 			.on("click", () => {
 				vis.minimap.setSolarView();
@@ -59,7 +61,7 @@ class Controls {
 			.attr("class", "btn btn-outline-light btn-sm")
 			.attr("title", "Zoom In Minimap")
 			.style("font-size", "11px")
-			.style("padding", "3px 10px")
+			.style("padding", buttonPadding)
 			.text("Zoom In")
 			.on("click", () => {
 				vis.minimap.zoomIn();
@@ -72,7 +74,7 @@ class Controls {
 			.attr("class", "btn btn-outline-light btn-sm")
 			.attr("title", "Zoom Out Minimap")
 			.style("font-size", "11px")
-			.style("padding", "3px 10px")
+			.style("padding", buttonPadding)
 			.text("Zoom Out")
 			.on("click", () => {
 				vis.minimap.zoomOut(true);
@@ -82,7 +84,7 @@ class Controls {
 		vis.zoomMaxBtn = buttonGroup.append("button")
 			.attr("class", "btn btn-outline-light btn-sm")
 			.style("font-size", "11px")
-			.style("padding", "3px 10px")
+			.style("padding", buttonPadding)
 			.text("Zoom Out (max)")
 			.on("click", () => {
 				vis.minimap.zoomOutMax();
