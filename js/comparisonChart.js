@@ -77,7 +77,7 @@ constructor(parentElement, textElement, initEarth) {
 			paddingY: 25,
 			marginTop: 10,
 			lineHeight: 28,
-			fontSize: 15
+			fontSize: 13
 		};
 		vis.toolHeight = Math.max(computedToolHeight, vis.infoBoxSize.height + vis.infoBoxSize.marginTop);
 
