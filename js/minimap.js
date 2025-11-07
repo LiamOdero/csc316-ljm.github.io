@@ -5,16 +5,29 @@ Minimap - ES6 Class
  * @param  data             -- the data the timeline should use
  */
 
+EPSILON = 0.75e-1
 class Minimap {
 
 	// constructor method to initialize Timeline object
-	constructor(parentElement, data, mainChart){
+	constructor(parentElement, controls, mainChart){
 		this._parentElement = parentElement;
-		this._data = data;
+		this.controls = controls;
 		this._mainChart = mainChart;
 
-		// No data wrangling, no update sequence
-		this._displayData = data;
+		// Track current minimap domain for zoom functionality
+		this.currentXDomain = null;
+		this.currentYDomain = null;
+		this.zoomStack = []; // stack to store zoom history
+		this.isPanning = false; // flag to track panning state
+		this.isDraggingViewport = false; // flag to track viewport drag state
+		this.isZoomingOutMax = false; // flag to track zoom out max in progress
+		this.currentBrushDomain = null; // domain of brush on minimap
+		this.currentFilterCriteria = null; // store current filter state
+
+		this.planetData = this._mainChart.data.filter((e) => isNaN(e.name)).slice(0, 4);
+		this.planetColours = {"Mercury": "#E5E5E5", "Venus": "#E5E5E5", "Earth": "#2f6a69", "Mars": "#E27B58",
+						  "Jupiter": "#b07f35", "Saturn": "#b08f36", "Uranus": "#5580aa", "Neptune": "#7CB7BB"
+		}
 	}
 
 	// create initVis method for Timeline class
@@ -37,65 +50,133 @@ class Minimap {
 
 		const chartData = vis._mainChart.data;
 
+		// Initialize current domain to full extent
+		vis.currentXDomain = d3.extent(chartData, d => d.x_pos);
+		vis.currentYDomain = d3.extent(chartData, d => d.y_pos);
+
 		// scales on minimap based on the given data
 		vis.x = d3.scaleLinear()
 			.range([0, vis.width])
-			.domain(d3.extent(chartData, d => d.x_pos));
+			.domain(vis.currentXDomain);
 
 		vis.y = d3.scaleLinear()
 			.range([vis.height, 0])
-			.domain(d3.extent(chartData, d => d.y_pos));
+			.domain(vis.currentYDomain);
 
 		vis.r = d3.scaleLinear()
 			.range([0, 2]) 
 			.domain(d3.extent(chartData, d => d.rad));
 
 		// stars on the minimap
-		vis.svg.selectAll("circle")
-			.data(chartData)
-			.enter()
-			.append("circle")
-			.attr("cx", d => vis.x(d.x_pos))
-			.attr("cy", d => vis.y(d.y_pos))
-			.attr("r", d => vis.r(d.rad))
-			.attr("fill", d => {
-				return vis._mainChart.colorScale(d.temp);
-			})
-			.attr("opacity", 1);
+		vis.starsGroup = vis.svg.append("g")
+			.attr("class", "minimap-stars");
 
-		vis.brush = d3.brush()
-			.extent([[0, 0], [vis.width, vis.height]])
-			.on("brush end", function(event) {
-				if (event.selection) {
-					const [[x0, y0], [x1, y1]] = event.selection;
-					
-					// convert the brush's pixel rectangle into x/y domains
-					const xDomain = [vis.x.invert(x0), vis.x.invert(x1)];
-					const yDomain = [vis.y.invert(y1), vis.y.invert(y0)]; 
-					
-					vis._mainChart.updateDomain(xDomain, yDomain);
+		vis.updateMinimapStars();
+
+		// Add draggable background for panning (add this first, before viewport)
+		// DISABLED: Panning functionality removed per user request
+		vis.panArea = vis.svg.append("rect")
+			.attr("class", "pan-area")
+			.attr("width", vis.width)
+			.attr("height", vis.height)
+			.attr("fill", "transparent")
+			.style("cursor", "default")
+			.lower(); // Put it behind everything
+
+		// Add viewport rectangle to show main chart's current view (add after pan-area)
+		vis.viewportRect = vis.svg.append("rect")
+			.attr("class", "viewport-rect")
+			.attr("fill", "none")
+			.attr("stroke", "#ffd369")
+			.attr("stroke-width", 2)
+			.attr("rx", 2)
+			.attr("pointer-events", "all")
+			.style("cursor", "move");
+
+		// Make viewport rectangle draggable
+		const viewportDrag = d3.drag()
+			.on("start", function(event) {
+				if (!vis.currentBrushDomain || vis.viewportRect.attr("opacity") == 0) {
+					event.sourceEvent.stopPropagation();
+					return;
 				}
+				vis.isDraggingViewport = true;
+				d3.select(this).style("cursor", "grabbing");
+				event.sourceEvent.stopPropagation(); // Prevent pan-area from receiving event
+			})
+			.on("drag", function(event) {
+				// cannot pan if there is no brush domain
+				if (!vis.currentBrushDomain || vis.viewportRect.attr("opacity") == 0) {
+					return;
+				}
+				// Get current viewport position and size
+				const rect = d3.select(this);
+				const width = parseFloat(rect.attr("width"));
+				const height = parseFloat(rect.attr("height"));
+				
+				// Calculate new position
+				let newX = parseFloat(rect.attr("x")) + event.dx;
+				let newY = parseFloat(rect.attr("y")) + event.dy;
+
+				// Clamp to minimap bounds
+				newX = Math.max(0, Math.min(newX, vis.width - width));
+				newY = Math.max(0, Math.min(newY, vis.height - height));
+
+				// Update rectangle position
+				rect.attr("x", newX).attr("y", newY);
+
+				// Convert pixel position to data domain
+				const xDomain = [vis.x.invert(newX), vis.x.invert(newX + width)];
+				const yDomain = [vis.y.invert(newY + height), vis.y.invert(newY)]; // y is inverted
+
+				// Update main chart
+				vis._mainChart.updateDomainWithoutMinimapUpdate(xDomain, yDomain);
+			})
+			.on("end", function() {
+				vis.isDraggingViewport = false;
+				d3.select(this).style("cursor", "move");
 			});
 
-		// add brush to svg
-		vis.brushGroup = vis.svg.append("g")
-			.attr("class", "brush")
-			.call(vis.brush);
+
+		vis.viewportRect.call(viewportDrag);
+		vis.setSolarView();
+	}
+
+	setSolarView()	{
+		// zoom with a little padding so that planets are not at the edge of the view
+		let vis = this;
+		vis.currentXDomain = d3.extent(vis.planetData, d => d.x_pos)
+		vis.currentYDomain = d3.extent(vis.planetData, d => d.y_pos);
+
+		vis._mainChart.updateDomainWithoutMinimapUpdate(vis.currentXDomain, vis.currentYDomain);
+		vis.updateBrushFromMainChart(vis.currentXDomain, vis.currentYDomain);
 	}
 
 	/**
-	 * resets the brush to the original domain
+	 * resets the view to the original domain
 	 */
 	resetBrush() {
 		let vis = this;
+		
+		// Hide viewport rectangle
+		vis.viewportRect
+			.attr("opacity", 0)
+			.style("cursor", "default");
+		
+		// Reset main chart with animation
 		vis._mainChart.resetDomain();
 		
-		// remove the brush on the minimap
-		vis.brushGroup.call(vis.brush.move, null);
+		// Reset minimap zoom to full extent
+		const chartData = vis._mainChart.data;
+		vis.currentXDomain = d3.extent(chartData, d => d.x_pos);
+		vis.currentYDomain = d3.extent(chartData, d => d.y_pos);
+		vis.zoomStack = [];
+		vis.currentBrushDomain = null; // Clear brush domain when resetting
+		vis.updateMinimapView();
 	}
 
 	/**
-	 * set the brush to show the full extent of all data
+	 * set the view to show the full extent of all data
 	 */
 	setFullExtent() {
 		let vis = this;
@@ -104,11 +185,404 @@ class Minimap {
 		const maxY = d3.extent(chartData, d => d.y_pos);
 		
 		vis._mainChart.updateDomain(maxX, maxY);
+	}
+
+	/**
+	 * update star's on the minimap based on current domain (currently for zooming in and out)
+	 */
+	updateMinimapStars(useTransition = true) {
+		let vis = this;
+		const chartData = vis._mainChart.data;
+
+		if (vis.isPanning) {
+			vis._displayData = chartData;
+		} else {
+			vis._displayData = chartData.filter(d => 
+				d.x_pos >= vis.currentXDomain[0] && d.x_pos <= vis.currentXDomain[1] &&
+				d.y_pos >= vis.currentYDomain[0] && d.y_pos <= vis.currentYDomain[1]
+			);
+		}
+
+		// radius on minimap scales relative to how zoomed in the minimap is.
+		if (vis._displayData.length > 0) {
+			const radExtent = d3.extent(vis._displayData, d => d.rad);
+			vis.r.domain(radExtent);
+		}
+
+		vis._displayData = vis._displayData.filter((e) =>	{
+			return vis.r(e.rad) > EPSILON;
+		})
+
+		const circles = vis.starsGroup.selectAll("circle")
+			.data(vis._displayData, d => d.name); 
+
+		circles.enter()
+			.append("circle")
+			.attr("cx", d => vis.x(d.x_pos))
+			.attr("cy", d => vis.y(d.y_pos))
+			.attr("r", d => vis.r(d.rad))
+			.attr("fill", function(d) { 
+				if (d.name in vis.planetColours)	{
+						return vis.planetColours[d.name];
+				}	else	{
+					return vis._mainChart.colorScale(d.temp); 
+				}
+			})
+			.attr("opacity", 1)
+			.merge(circles)
+			.each(function(d) {
+				const selection = useTransition ? d3.select(this).transition().duration(800) : d3.select(this);
+				selection
+					.attr("cx", d => vis.x(d.x_pos))
+					.attr("cy", d => vis.y(d.y_pos))
+					.attr("r", d => vis.r(d.rad))
+					.attr("fill", function(d) { 
+						if (d.name in vis.planetColours)	{
+							return vis.planetColours[d.name];
+						}	else	{
+							return vis._mainChart.colorScale(d.temp); 
+						}
+					})
+				
+				// Apply current filter criteria to ensure consistency
+				if (vis.currentFilterCriteria) {
+					const distOk = Math.abs(d.dist) >= vis.currentFilterCriteria.distanceMin && Math.abs(d.dist) <= vis.currentFilterCriteria.distanceMax;
+					const radOk = d.rad >= vis.currentFilterCriteria.radiusMin && d.rad <= vis.currentFilterCriteria.radiusMax;
+					const tempOk = d.temp >= vis.currentFilterCriteria.temperatureMin && d.temp <= vis.currentFilterCriteria.temperatureMax;
+					const lumOk = isNaN(d.lum) || (d.lum >= vis.currentFilterCriteria.luminosityMin && d.lum <= vis.currentFilterCriteria.luminosityMax);
+					const matches = distOk && radOk && tempOk && lumOk;
+					
+					if (!matches) {
+						// Star doesn't match filter - fade and shrink
+						selection
+							.attr("opacity", 0)
+							.attr("r", 0.1);
+					}
+				}
+			});
+
+		circles.exit().remove();
+	}
+
+	/**
+	 * update entire minimap
+	 */
+	updateMinimapView(useTransition = true) {
+		let vis = this;
+		vis.x.domain(vis.currentXDomain);
+		vis.y.domain(vis.currentYDomain);
+
+		vis.updateMinimapStars(useTransition);
 		
-		const brushSelection = [
-			[0, 0],
-			[vis.width, vis.height]
+		// Update viewport rectangle if brush is active
+		if (vis.currentBrushDomain) {
+			vis.updateViewportRectangle(vis.currentBrushDomain.x, vis.currentBrushDomain.y, useTransition);
+		}
+	}
+
+	/**
+	 * Update viewport rectangle to show the current main chart view
+	 */
+	updateBrushFromMainChart(xDomain, yDomain) {
+		let vis = this;
+
+		// Don't update if we're currently panning or dragging viewport
+		if (vis.isPanning || vis.isDraggingViewport) return;
+
+		// Check if we're viewing the full extent (reset state)
+		const chartData = vis._mainChart.data;
+		const fullXDomain = d3.extent(chartData, d => d.x_pos);
+		const fullYDomain = d3.extent(chartData, d => d.y_pos);
+		const isFullExtent = Math.abs(xDomain[0] - fullXDomain[0]) < 0.001 && 
+		                     Math.abs(xDomain[1] - fullXDomain[1]) < 0.001 &&
+		                     Math.abs(yDomain[0] - fullYDomain[0]) < 0.001 && 
+		                     Math.abs(yDomain[1] - fullYDomain[1]) < 0.001;
+
+		// Hide viewport rectangle if viewing full extent
+		if (isFullExtent) {
+			vis.currentBrushDomain = null;
+			vis.viewportRect
+				.transition()
+				.duration(800)
+				.attr("opacity", 0)
+				.style("cursor", "default"); // Change cursor when not draggable
+			return;
+		}
+
+		// Store current brush domain for zoom updates
+		vis.currentBrushDomain = { x: xDomain, y: yDomain };
+
+		// Zoom minimap to show area around the brush
+		const xRange = xDomain[1] - xDomain[0];
+		const yRange = yDomain[1] - yDomain[0];
+		const xCenter = (xDomain[0] + xDomain[1]) / 2;
+		const yCenter = (yDomain[0] + yDomain[1]) / 2;
+		
+		// Zoom factor: make the minimap show 3x the brush area
+		const zoomFactor = 3;
+		
+		let newXDomain = [
+			xCenter - (xRange * zoomFactor) / 2,
+			xCenter + (xRange * zoomFactor) / 2
 		];
-		vis.brushGroup.call(vis.brush.move, brushSelection);
+		let newYDomain = [
+			yCenter - (yRange * zoomFactor) / 2,
+			yCenter + (yRange * zoomFactor) / 2
+		];
+		
+		// Clamp to full data extent
+		newXDomain[0] = Math.max(newXDomain[0], fullXDomain[0]);
+		newXDomain[1] = Math.min(newXDomain[1], fullXDomain[1]);
+		newYDomain[0] = Math.max(newYDomain[0], fullYDomain[0]);
+		newYDomain[1] = Math.min(newYDomain[1], fullYDomain[1]);
+		
+		// Update minimap domain
+		vis.currentXDomain = newXDomain;
+		vis.currentYDomain = newYDomain;
+		vis.x.domain(vis.currentXDomain);
+		vis.y.domain(vis.currentYDomain);
+		
+		// Update minimap view with transition
+		vis.updateMinimapView(true);
+	}
+
+	/**
+	 * Update viewport rectangle position and size
+	 */
+	updateViewportRectangle(xDomain, yDomain, useTransition = true) {
+		let vis = this;
+
+		// Check if domains are within current minimap view
+		const inView = xDomain[0] >= vis.currentXDomain[0] && 
+		               xDomain[1] <= vis.currentXDomain[1] &&
+		               yDomain[0] >= vis.currentYDomain[0] && 
+		               yDomain[1] <= vis.currentYDomain[1];
+
+		if (inView) {
+			// Convert data domain to pixel coordinates
+			const x0 = vis.x(xDomain[0]);
+			const x1 = vis.x(xDomain[1]);
+			const y0 = vis.y(yDomain[1]); // y scale is inverted
+			const y1 = vis.y(yDomain[0]);
+
+			// Update viewport rectangle
+			const rect = useTransition ? 
+				vis.viewportRect.transition().duration(800) : 
+				vis.viewportRect;
+			
+			rect
+				.attr("x", x0)
+				.attr("y", y0)
+				.attr("width", x1 - x0)
+				.attr("height", y1 - y0)
+				.attr("opacity", 1)
+				.style("cursor", "move"); // Enable cursor for dragging
+		} else {
+			// Hide viewport rectangle if main chart view is outside minimap
+			const rect = useTransition ? 
+				vis.viewportRect.transition().duration(800) : 
+				vis.viewportRect;
+			rect
+				.attr("opacity", 0)
+				.style("cursor", "default"); // Disable cursor when not visible
+		}
+	}
+
+	/**
+	 * Apply filters to fade out stars that don't match criteria
+	 */
+	applyFilters(filterCriteria) {
+		let vis = this;
+		
+		// Store the current filter criteria so we can reapply when panning
+		vis.currentFilterCriteria = filterCriteria;
+		
+		// Check each star against filter criteria and update opacity + radius
+		vis.starsGroup.selectAll("circle")
+			.each(function(d) {
+				const distOk = Math.abs(d.dist) >= filterCriteria.distanceMin && Math.abs(d.dist) <= filterCriteria.distanceMax;
+				const radOk = d.rad >= filterCriteria.radiusMin && d.rad <= filterCriteria.radiusMax;
+				const tempOk = d.temp >= filterCriteria.temperatureMin && d.temp <= filterCriteria.temperatureMax;
+				const lumOk = isNaN(d.lum) || (d.lum >= filterCriteria.luminosityMin && d.lum <= filterCriteria.luminosityMax);
+				const matches = distOk && radOk && tempOk && lumOk;
+				
+				const circle = d3.select(this);
+				const originalRadius = vis.r(d.rad);
+				
+				if (matches) {
+					// Star matches - restore full opacity and original size
+					circle.transition()
+						.duration(500)
+						.attr("opacity", 1)
+						.attr("r", originalRadius);
+				} else {
+					// Star doesn't match - fade and shrink to nearly invisible
+					circle.transition()
+						.duration(500)
+						.attr("opacity", 0)
+						.attr("r", 0.1);
+				}
+			});
+	}
+
+	/**
+	 * Zoom in on the minimap (reduce domain by 50%)
+	 */
+	zoomIn() {
+		let vis = this;
+
+		// Save current domain
+		vis.zoomStack.push({
+			x: [...vis.currentXDomain],
+			y: [...vis.currentYDomain]
+		});
+
+		// Calculate center (use brush center if available, otherwise minimap center)
+		let xCenter, yCenter;
+		if (vis.currentBrushDomain) {
+			xCenter = (vis.currentBrushDomain.x[0] + vis.currentBrushDomain.x[1]) / 2;
+			yCenter = (vis.currentBrushDomain.y[0] + vis.currentBrushDomain.y[1]) / 2;
+		} else {
+			xCenter = (vis.currentXDomain[0] + vis.currentXDomain[1]) / 2;
+			yCenter = (vis.currentYDomain[0] + vis.currentYDomain[1]) / 2;
+		}
+
+		// Calculate new domain (zoom in by 50%)
+		const xRange = vis.currentXDomain[1] - vis.currentXDomain[0];
+		const yRange = vis.currentYDomain[1] - vis.currentYDomain[0];
+
+		vis.currentXDomain = [
+			xCenter - xRange * 0.25,
+			xCenter + xRange * 0.25
+		];
+		vis.currentYDomain = [
+			yCenter - yRange * 0.25,
+			yCenter + yRange * 0.25
+		];
+
+		vis.updateMinimapView(true);
+	}
+
+	/**
+	 * Zoom out on the minimap (restore previous zoom level or expand by 2x)
+	 */
+	zoomOut(updateview) {
+		let vis = this;
+
+		if (vis.zoomStack.length > 0) {
+			// Pop from zoom stack
+			const previousZoom = vis.zoomStack.pop();
+			vis.currentXDomain = previousZoom.x;
+			vis.currentYDomain = previousZoom.y;
+		} else {
+			// If no history, zoom out by 2x
+			// Calculate center (use brush center if available, otherwise minimap center)
+			let xCenter, yCenter;
+			if (vis.currentBrushDomain) {
+				xCenter = (vis.currentBrushDomain.x[0] + vis.currentBrushDomain.x[1]) / 2;
+				yCenter = (vis.currentBrushDomain.y[0] + vis.currentBrushDomain.y[1]) / 2;
+			} else {
+				xCenter = (vis.currentXDomain[0] + vis.currentXDomain[1]) / 2;
+				yCenter = (vis.currentYDomain[0] + vis.currentYDomain[1]) / 2;
+			}
+
+			const xRange = vis.currentXDomain[1] - vis.currentXDomain[0];
+			const yRange = vis.currentYDomain[1] - vis.currentYDomain[0];
+
+			vis.currentXDomain = [
+				xCenter - xRange,
+				xCenter + xRange
+			];
+			vis.currentYDomain = [
+				yCenter - yRange,
+				yCenter + yRange
+			];
+
+			// Clamp to original data extent
+			const chartData = vis._mainChart.data;
+			const maxXDomain = d3.extent(chartData, d => d.x_pos);
+			const maxYDomain = d3.extent(chartData, d => d.y_pos);
+
+			vis.currentXDomain[0] = Math.max(vis.currentXDomain[0], maxXDomain[0]);
+			vis.currentXDomain[1] = Math.min(vis.currentXDomain[1], maxXDomain[1]);
+			vis.currentYDomain[0] = Math.max(vis.currentYDomain[0], maxYDomain[0]);
+			vis.currentYDomain[1] = Math.min(vis.currentYDomain[1], maxYDomain[1]);
+		}
+
+		if (updateview)	{
+			vis.updateMinimapView(true);
+		}	else	{
+			vis._displayData = vis._mainChart.data.filter(d => 
+				d.x_pos >= vis.currentXDomain[0] && d.x_pos <= vis.currentXDomain[1] &&
+				d.y_pos >= vis.currentYDomain[0] && d.y_pos <= vis.currentYDomain[1]
+			);
+
+			vis._displayData = vis._displayData.filter((e) =>	{
+				return vis.r(e.rad) > EPSILON;
+			})
+		}
+
+	}
+
+	approxEqual(a, b, epsilon = 1e-5) {
+		return Math.abs(a - b) < epsilon;
+	}
+
+	zoomOutMax()	{
+		let vis = this;
+		const maxXdomain = d3.extent(this._mainChart.data, d => d.x_pos);
+		const maxYdomain = d3.extent(this._mainChart.data, d => d.y_pos);
+
+		let currSize = vis._displayData.length;
+		let currDiff = 100;
+
+		function zoomStep() {
+			if (
+				vis.approxEqual(vis.currentXDomain[0], maxXdomain[0]) &&
+				vis.approxEqual(vis.currentXDomain[1], maxXdomain[1]) &&
+				vis.approxEqual(vis.currentYDomain[0], maxYdomain[0]) &&
+				vis.approxEqual(vis.currentYDomain[1], maxYdomain[1])
+			) {
+				vis.viewportRect.attr("opacity", 0);
+				vis.controls.resetBrushBtn.property("disabled", false)
+				vis.controls.zoomMinBtn.property("disabled", false)
+				vis.controls.zoomInBtn.property("disabled", false)
+				vis.controls.zoomOutBtn.property("disabled", false)
+				vis.controls.zoomMaxBtn.property("disabled", false)
+				// Re-enable brush and clear flag when zoom out max is complete
+				vis.isZoomingOutMax = false;
+				if (vis._mainChart && vis._mainChart.brushGroup) {
+					vis._mainChart.brushGroup.style("pointer-events", "all");
+				}
+				return;
+			}
+
+			// Perform zoom out
+			vis.zoomOut(!(currDiff === 0));
+
+			currDiff = vis._displayData.length - currSize;
+			currSize = vis._displayData.length;
+
+			if (!(currDiff === 0)) {
+				vis._mainChart.updateDomain(vis.currentXDomain, vis.currentYDomain);
+			}
+
+			// Choose delay dynamically:
+			const delay = (currDiff === 0) ? 0 : 500;
+			setTimeout(zoomStep, delay);
+		}
+		vis.controls.resetBrushBtn.property("disabled", true)
+		vis.controls.zoomMinBtn.property("disabled", true)
+		vis.controls.zoomInBtn.property("disabled", true)
+		vis.controls.zoomOutBtn.property("disabled", true)
+		vis.controls.zoomMaxBtn.property("disabled", true)
+
+		// Set flag and disable brush when zoom out max starts
+		vis.isZoomingOutMax = true;
+		if (vis._mainChart && vis._mainChart.brushGroup) {
+			vis._mainChart.brushGroup.style("pointer-events", "none");
+		}
+		zoomStep();
+
 	}
 }

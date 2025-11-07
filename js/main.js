@@ -1,10 +1,12 @@
 
 // Variables for the visualization instances
-let areachart, timeline;
+let areachart, timeline, controls, minimap;
 let data;
 
-let RADIUS_SUN= 696340;
-let SUN_LUMINOSITY = 3.83e26
+const RADIUS_SUN= 696340;
+const SUN_LUMINOSITY = 3.83e26;
+// 1mil km to light years
+const LIGHT_YEAR = 9.461e+12;
 
 // Start application by loading the data
 loadData();
@@ -14,25 +16,34 @@ function loadData() {
             
         data_cleaned = prepareData(data)
         
-		console.log(data_cleaned)
-        console.log('data loaded ')
+		//console.log(data_cleaned)
+        //console.log('data loaded ')
 
-		compareChart = new ComparisonChart("star-comparison", "highlight-text")
-		compareChart.initVis();
+		compareChart1 = new ComparisonChart("star-comparison-1" , "highlight-text", true)
+		compareChart1.initVis();
 
-		areachart = new StarDisplayChart("stacked-area-chart", data_cleaned, compareChart);
+		compareChart2 = new ComparisonChart("star-comparison-2" , "highlight-text", false)
+		compareChart2.initVis();
+
+		areachart = new StarDisplayChart("stacked-area-chart", data_cleaned, compareChart1, compareChart2);
 		areachart.initVis();
-		
-		minimap = new Minimap("timeline", data.years, areachart)
+
+		// Initialize D3-based controls
+		controls = new Controls("controls-container", data_cleaned);
+		controls.initVis();
+		controls.setAreachart(areachart);
+
+	
+		minimap = new Minimap("timeline", controls, areachart)
 		minimap.initVis();
+		controls.setMinimap(minimap)
 
-		d3.select("#reset-brush-btn").on("click", () => {
-			minimap.resetBrush();
-		});
+		// Set minimap reference in main chart so brush can update it
+		areachart.setMinimap(minimap);
 
-		d3.select("#full-extent-btn").on("click", () => {
-			minimap.setFullExtent();
-		});
+		// Initialize D3-based filters
+		filters = new Filters("filter", data_cleaned, areachart, minimap);
+		filters.initVis();
     });
 }
 
@@ -43,11 +54,13 @@ function prepareData(data){
 							dist: +e.Dist, 
 							lum: (e["Lum-Flame"]) ? + e["Lum-Flame"] * SUN_LUMINOSITY : NaN, 
 							rad: +e.Rad * RADIUS_SUN,
-							temp: +e.Teff})
+							temp: +e.Teff,
+							x_pos: +e.x_pos,
+							y_pos: +e.y_pos})
 	});
 
 	data_cleansed.sort(function(a, b)	{
-		return b.dist - a.dist;
+		return a.rad - b.rad;
 	})
 
 	for (let i = 0; i < data_cleansed.length; i++)	{
@@ -59,6 +72,4 @@ function prepareData(data){
 	return data_cleansed
 }
 
-function brushed() {
 
-}

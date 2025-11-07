@@ -4,6 +4,7 @@ body {
   font-family: 'Roboto', sans-serif;
   background-color: 	#0a0a0f;
   text-align: center;
+  overflow-x: hidden;
 }
 
 h1 {
@@ -62,7 +63,158 @@ h2 {
   stroke: rgba(166, 124, 50, 0.9);
 }
 
+.comparison-card {
+  position: relative;
+  border: 1px solid rgb(49, 49, 49);
+  border-radius: 2px;
+  transition: border-color 0.15s ease;
+}
+
+.comparison-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  pointer-events: none;
+}
+
+.comparison-card:hover::after {
+  border-color: rgb(107, 107, 107);
+}
+
+.comparison-card--active {
+  border-color: rgb(107, 107, 107);
+  box-shadow: 0 0 14px rgba(116, 116, 116, 0.9);
+}
+
+.comparison-card--active::after {
+  border-color: rgb(49, 49, 49);
+}
+
+.comparison-info-text {
+  color: #ffffff;
+  font-family: 'Roboto', sans-serif;
+  line-height: 1.3;
+}
+
+.comparison-info-text p {
+  word-break: break-word;
+}
+
+.instruction-list {
+  text-align: left;
+  margin: 0;
+  padding-left: 18px;
+  color: #dcdcdc;
+}
+
+.instruction-list li {
+  margin-bottom: 6px;
+}
+
 #timeline {
   background: rgba(8, 8, 12, 0.5);
   border-radius: 5px;
+}
+
+.viewport-rect {
+  cursor: move !important;
+}
+
+.viewport-rect:hover {
+  stroke: #ffeb3b;
+  stroke-width: 3;
+}
+
+.pan-area {
+  cursor: grab;
+}
+
+.pan-area:active {
+  cursor: grabbing;
+}
+
+/* Range slider container for dual handles */
+.range-slider-container {
+  position: relative;
+  height: 20px;
+  margin: 3px 0;
+  padding: 0 5px; 
+}
+
+.range-slider-container::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 5px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  z-index: 0;
+}
+
+.range-slider-container input[type="range"] {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 5px;
+  background: transparent;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  padding: 0;
+}
+
+.range-slider-container input[type="range"]::-webkit-slider-track {
+  width: 100%;
+  height: 5px;
+  background: transparent;
+  border-radius: 3px;
+}
+
+.range-slider-container input[type="range"]::-moz-range-track {
+  width: 100%;
+  height: 5px;
+  background: transparent;
+  border-radius: 3px;
+}
+
+.range-slider-container input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  background: #ffd369;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: all;
+  position: relative;
+  z-index: 2;
+}
+
+.range-slider-container input[type="range"]::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  background: #ffd369;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: all;
+  position: relative;
+  z-index: 2;
+}
+
+.range-slider-container input[type="range"].range-max::-webkit-slider-thumb {
+  background: #ff9800;
+}
+
+.range-slider-container input[type="range"].range-max::-moz-range-thumb {
+  background: #ff9800;
 }
